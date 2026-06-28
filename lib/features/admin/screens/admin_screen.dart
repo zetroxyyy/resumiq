@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,37 +5,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../models/user_model.dart';
+import '../providers/admin_provider.dart';
 
-final totalUsersProvider = StreamProvider<int>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .snapshots()
-      .map((snap) => snap.docs.length);
-});
-
-final proUsersCountProvider = StreamProvider<int>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .where('tier', isEqualTo: 'pro')
-      .snapshots()
-      .map((snap) => snap.docs.length);
-});
-
-final totalCvsCountProvider = StreamProvider<int>((ref) {
-  return FirebaseFirestore.instance
-      .collectionGroup('cvs')
-      .snapshots()
-      .map((snap) => snap.docs.length);
-});
-
-final allUsersProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .snapshots()
-      .map((snap) => snap.docs
-          .map((doc) => UserModel.fromJson({...doc.data(), 'uid': doc.id}))
-          .toList());
-});
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -73,7 +43,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     final totalUsersAsync = ref.watch(totalUsersProvider);
     final proUsersAsync = ref.watch(proUsersCountProvider);
-    final totalCvsAsync = ref.watch(totalCvsCountProvider);
+    final totalCvsAsync = ref.watch(totalGenerationsProvider);
     final allUsersAsync = ref.watch(allUsersProvider);
 
     return DefaultTabController(
@@ -171,7 +141,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             color: Colors.amber,
           ),
           _buildStatCard(
-            label: 'Total CVs Created',
+            label: 'Total Generations',
             valueAsync: totalCvsAsync,
             icon: Icons.description,
             color: Colors.green,
@@ -209,7 +179,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               ),
               loading: () => const SizedBox(
                   width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              error: (e, s) => const Text('Err', style: TextStyle(color: Colors.redAccent)),
+              error: (e, s) => const Text('--', style: TextStyle(color: Colors.white54)),
             ),
             const SizedBox(height: 6),
             Text(
