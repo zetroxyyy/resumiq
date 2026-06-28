@@ -121,3 +121,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# khalti_flutter 3.0.0 has a TabBarTheme→TabBarThemeData breaking change with
+# Flutter 3.27+. There is no newer version on pub.dev. We use a local patched
+# copy in packages/khalti_flutter that fixes this source-level incompatibility.
+dependency_overrides:
+  khalti_flutter:
+    path: packages/khalti_flutter
