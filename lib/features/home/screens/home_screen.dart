@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/gradient_background.dart';
-import '../../../app/theme.dart';
 import '../../../core/widgets/pro_badge.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../providers/home_provider.dart';
+import '../widgets/cv_card.dart';
+import '../widgets/empty_state_widget.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -22,15 +24,12 @@ class HomeScreen extends ConsumerWidget {
     }
 
     final isAdmin = user.email == AppConstants.adminEmail;
+    final firstName = user.name.split(' ').first;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Resumind'),
         actions: [
-          if (user.isPro) ...[
-            const ProBadge(),
-            const SizedBox(width: 16),
-          ],
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -40,167 +39,236 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: GradientBackground(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                color: theme.cardColor,
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-                        child: Text(
-                          user.name.isNotEmpty
-                              ? user.name[0].toUpperCase()
-                              : 'U',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            // Force stream refresh if pulling down
+            ref.invalidate(userCvsProvider);
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Greeting Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Hello, $firstName 👋',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello, ${user.name}!',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
+                    ),
+                    const SizedBox(width: 8),
+                    if (user.isPro) const ProBadge(),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Ready to impress?',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                ),
+
+                // Free Tier Counter Card
+                if (!user.isPro) ...[
+                  const SizedBox(height: 20),
+                  Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(18.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${user.generationsThisMonth} of 2 free CVs used this month',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (user.generationsThisMonth >= 2)
+                                TextButton(
+                                  onPressed: () => context.push('/upgrade'),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'Upgrade',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: (user.generationsThisMonth / 2.0).clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor: Colors.white10,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                theme.colorScheme.primary,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              user.email,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
+                // Create New CV Gradient Card
+                const SizedBox(height: 24),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.secondary,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => context.push('/cv/input'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.add_circle_outline,
+                                size: 28,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Create New CV',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Start Building →',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 32),
-              Text(
-                'Actions',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView(
-                  children: [
-                    _buildActionCard(
-                      context,
-                      title: 'Generate New Resume',
-                      subtitle: 'Tailored resume generated by Gemini AI',
-                      icon: Icons.add_to_photos_outlined,
-                      route: '/cv/input',
-                    ),
-                    _buildActionCard(
-                      context,
-                      title: 'Select Resume Templates',
-                      subtitle: 'Choose from different custom PDF formats',
-                      icon: Icons.dashboard_customize_outlined,
-                      route: '/cv/templates',
-                    ),
-                    _buildActionCard(
-                      context,
-                      title: 'My Profile & Settings',
-                      subtitle: 'Update your personal info and career goals',
-                      icon: Icons.person_outline,
-                      route: '/profile',
-                    ),
-                    if (!user.isPro)
-                      _buildActionCard(
-                        context,
-                        title: 'Upgrade to PRO',
-                        subtitle: 'Unlock unlimited generations & all templates',
-                        icon: Icons.stars_outlined,
-                        color: AppTheme.proBadgeColor.withOpacity(0.15),
-                        route: '/upgrade',
-                      ),
-                    if (isAdmin)
-                      _buildActionCard(
-                        context,
-                        title: 'Admin Dashboard',
-                        subtitle: 'Manage app, users, and transactions',
-                        icon: Icons.admin_panel_settings_outlined,
-                        route: '/admin',
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildActionCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required String route,
-    Color? color,
-  }) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        color: color ?? theme.cardColor,
-        child: InkWell(
-          onTap: () => context.push(route),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(18.0),
-            child: Row(
-              children: [
-                Icon(icon, size: 28, color: theme.colorScheme.primary),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
+                // CV List Section
+                const SizedBox(height: 32),
+                Text(
+                  'Your CVs',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                const Icon(Icons.chevron_right),
+                const SizedBox(height: 16),
+
+                ref.watch(userCvsProvider).when(
+                      data: (cvs) {
+                        if (cvs.isEmpty) {
+                          return const EmptyStateWidget();
+                        }
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: cvs.length,
+                          itemBuilder: (context, index) {
+                            return CvCard(cv: cvs[index]);
+                          },
+                        );
+                      },
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (err, stack) => Center(
+                        child: Text(
+                          'Error loading CVs: $err',
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    ),
               ],
             ),
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          if (index == 0) return;
+          if (index == 1) {
+            context.push('/cv/input');
+          } else if (index == 2) {
+            context.go('/profile');
+          } else if (index == 3) {
+            context.go('/admin');
+          }
+        },
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          if (isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
+        ],
       ),
     );
   }

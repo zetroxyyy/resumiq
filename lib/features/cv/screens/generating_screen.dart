@@ -1,32 +1,62 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/gradient_background.dart';
+import '../providers/cv_provider.dart';
 
-class GeneratingScreen extends StatefulWidget {
+class GeneratingScreen extends ConsumerStatefulWidget {
   const GeneratingScreen({super.key});
 
   @override
-  State<GeneratingScreen> createState() => _GeneratingScreenState();
+  ConsumerState<GeneratingScreen> createState() => _GeneratingScreenState();
 }
 
-class _GeneratingScreenState extends State<GeneratingScreen> {
-  Timer? _timer;
+class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
+  int _messageIndex = 0;
+  double _opacity = 1.0;
+  Timer? _rotationTimer;
+
+  final List<String> _statusMessages = [
+    'Reading your information...',
+    'Understanding your experience...',
+    'Structuring your career story...',
+    'Applying professional formatting...',
+    'Scoring your CV...',
+    'Almost done...',
+  ];
 
   @override
   void initState() {
     super.initState();
-    // Simulate generation process for 3 seconds, then go to template selection
-    _timer = Timer(const Duration(seconds: 3), () {
+
+    // 1. Trigger Gemini CV Generation async
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(cvGenerationProvider.notifier).generate(context);
+    });
+
+    // 2. Setup status message rotation timer
+    _rotationTimer = Timer.periodic(const Duration(milliseconds: 2500), (timer) {
       if (mounted) {
-        context.go('/cv/templates');
+        setState(() {
+          _opacity = 0.0;
+        });
+
+        // Fade back in with the next message
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            setState(() {
+              _messageIndex = (_messageIndex + 1) % _statusMessages.length;
+              _opacity = 1.0;
+            });
+          }
+        });
       }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _rotationTimer?.cancel();
     super.dispose();
   }
 
@@ -38,32 +68,51 @@ class _GeneratingScreenState extends State<GeneratingScreen> {
       body: GradientBackground(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.all(32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 6,
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    shape: BoxShape.circle,
+                  ),
+                  child: SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 5,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        theme.colorScheme.primary,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 48),
                 Text(
-                  'Generating Professional CV...',
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  'Building Your AI Resume',
+                  style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Gemini AI is analyzing requirements and structuring your professional experiences.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 40, // Height anchor to prevent layout shifts
+                  child: AnimatedOpacity(
+                    opacity: _opacity,
+                    duration: const Duration(milliseconds: 250),
+                    child: Text(
+                      _statusMessages[_messageIndex],
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
