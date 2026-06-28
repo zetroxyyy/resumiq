@@ -29,7 +29,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  final String _merchantNumber = "9812345678"; // Dummy merchant eSewa number
+  final String _merchantNumber = "9703511213"; // Dummy merchant eSewa number
 
   @override
   void initState() {
@@ -164,6 +164,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                     return null;
                   },
                 ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Open eSewa app → History → tap your payment → copy Transaction ID',
+                  style: TextStyle(color: Colors.white38, fontSize: 11),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () {
@@ -193,7 +199,6 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
     final theme = Theme.of(context);
     final isMonthly = widget.plan == 'monthly';
     final price = isMonthly ? AppConstants.proMonthlyPriceNpr : AppConstants.proYearlyPriceNpr;
-    final user = ref.watch(authProvider);
 
     if (_isSubmitted) {
       return Scaffold(
@@ -326,7 +331,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                     // Step 2 Card (with QR)
                     _buildStepCard(
                       number: "2",
-                      title: "Scan this QR code or send to our eSewa",
+                      title: "Scan this QR code and send the exact amount",
                       content: Column(
                         children: [
                           const SizedBox(height: 16),
@@ -368,54 +373,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                     ),
                     const SizedBox(height: 12),
 
-                    // Step 3 Card (User Gmail Remarks)
+                    // Step 3 Card
                     _buildStepCard(
                       number: "3",
-                      title: "Add your Gmail in the remarks",
-                      content: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.white24),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    user?.email ?? '',
-                                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
-                                  onPressed: () {
-                                    Clipboard.setData(ClipboardData(text: user?.email ?? ''));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Gmail copied')),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'This is how we verify your payment',
-                            style: TextStyle(fontSize: 11, color: Colors.white38),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Step 4 Card
-                    _buildStepCard(
-                      number: "4",
                       title: "Tap 'I\'ve Paid' below after completing payment",
                     ),
                     const SizedBox(height: 32),

@@ -8,6 +8,52 @@ import '../models/cv_model.dart';
 class GeminiService {
   const GeminiService();
 
+  static String _apiKey = '';
+
+  Future<void> _initializeApiKey() async {
+    try {
+      // Layer 1: Try Remote Config fetch
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      await remoteConfig.setDefaults({
+        'GEMINI_API_KEY': '',
+      });
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 15),
+        minimumFetchInterval: const Duration(hours: 1),
+      ));
+      await remoteConfig.fetchAndActivate();
+      final fetchedKey = remoteConfig.getString('GEMINI_API_KEY').trim();
+      
+      debugPrint('RemoteConfig fetch result: '
+        'key length=${fetchedKey.length}, '
+        'isEmpty=${fetchedKey.isEmpty}');
+      
+      if (fetchedKey.isNotEmpty) {
+        _apiKey = fetchedKey;
+        debugPrint('Gemini: key loaded from Remote Config');
+        return;
+      }
+    } catch (e) {
+      debugPrint('RemoteConfig fetch error: $e');
+    }
+    
+    // Layer 2: Try cached Remote Config value
+    try {
+      final cachedKey = FirebaseRemoteConfig.instance
+        .getString('GEMINI_API_KEY').trim();
+      if (cachedKey.isNotEmpty) {
+        _apiKey = cachedKey;
+        debugPrint('Gemini: key loaded from RC cache');
+        return;
+      }
+    } catch (e) {
+      debugPrint('RemoteConfig cache error: $e');
+    }
+    
+    debugPrint('FATAL: Gemini API key could not be loaded from any source');
+    throw Exception('AI service is not configured. Please try again later.');
+  }
+
   Future<String> generateCv({
     required String uid,
     required String rawInput,
@@ -16,14 +62,14 @@ class GeminiService {
     bool atsOptimized = false,
   }) async {
     try {
-      debugPrint("RemoteConfig: fetching key...");
-      final remoteConfig = FirebaseRemoteConfig.instance;
-      final apiKey = await _getApiKey(remoteConfig);
+      if (_apiKey.isEmpty) {
+        await _initializeApiKey();
+      }
 
       debugPrint("Gemini: initializing with model gemini-1.5-pro");
       final model = GenerativeModel(
         model: 'gemini-1.5-pro',
-        apiKey: apiKey,
+        apiKey: _apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
         ),
@@ -184,13 +230,14 @@ class GeminiService {
     required Map<String, dynamic> currentCvJson,
     required String transcribedText,
   }) async {
-    final remoteConfig = FirebaseRemoteConfig.instance;
-    final apiKey = await _getApiKey(remoteConfig);
+    if (_apiKey.isEmpty) {
+      await _initializeApiKey();
+    }
 
     // 2. Instantiate Gemini 1.5 Pro model
     final model = GenerativeModel(
       model: 'gemini-1.5-pro',
-      apiKey: apiKey,
+      apiKey: _apiKey,
       generationConfig: GenerationConfig(
         responseMimeType: 'application/json',
       ),
@@ -221,12 +268,13 @@ class GeminiService {
     String? jobDescription,
     String? targetCompany,
   }) async {
-    final remoteConfig = FirebaseRemoteConfig.instance;
-    final apiKey = await _getApiKey(remoteConfig);
+    if (_apiKey.isEmpty) {
+      await _initializeApiKey();
+    }
 
     final model = GenerativeModel(
       model: 'gemini-1.5-pro',
-      apiKey: apiKey,
+      apiKey: _apiKey,
       systemInstruction: Content.system(
         'You are an expert cover letter writer. Write a professional, personalized '
         'cover letter based on the CV data provided. The letter must:\n'
@@ -252,28 +300,6 @@ class GeminiService {
     } catch (e) {
       throw Exception('Cover letter generation failed: ${e.toString()}');
     }
-  }
-
-  Future<String> _getApiKey(FirebaseRemoteConfig remoteConfig) async {
-    try {
-      await remoteConfig.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 10),
-        minimumFetchInterval: const Duration(hours: 1),
-      ));
-      await remoteConfig.fetchAndActivate();
-      debugPrint("RemoteConfig: key fetched successfully");
-    } catch (e) {
-      debugPrint("RemoteConfig: fetch failed, using cache: $e");
-    }
-
-    final rawKey = remoteConfig.getString('GEMINI_API_KEY');
-    final trimmedKey = rawKey.trim();
-    debugPrint("Gemini key length after trim: ${trimmedKey.length}");
-    
-    if (trimmedKey.isEmpty) {
-      throw Exception('Gemini API key is empty. Check Remote Config.');
-    }
-    return trimmedKey;
   }
 
   String _cleanJsonString(String source) {
