@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../models/cv_model.dart';
 import '../services/gemini_service.dart';
 
 class CvInputState {
@@ -84,3 +86,20 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
     }
   }
 }
+
+// Single CV real-time details stream provider
+final cvDetailProvider = StreamProvider.family<CvModel?, String>((ref, cvId) {
+  final user = ref.watch(authProvider);
+  if (user == null) {
+    return Stream.value(null);
+  }
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .collection('cvs')
+      .doc(cvId)
+      .snapshots()
+      .map((snap) => snap.exists && snap.data() != null
+          ? CvModel.fromJson({...snap.data()!, 'id': snap.id})
+          : null);
+});
