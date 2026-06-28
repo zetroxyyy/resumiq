@@ -5,8 +5,25 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 
-class UpgradeScreen extends StatelessWidget {
+class UpgradeScreen extends StatefulWidget {
   const UpgradeScreen({super.key});
+
+  @override
+  State<UpgradeScreen> createState() => _UpgradeScreenState();
+}
+
+class _UpgradeScreenState extends State<UpgradeScreen> {
+  String _selectedPlan = 'yearly';
+
+  final List<FeatureRow> _features = [
+    const FeatureRow('Unlimited AI Generations', false, true),
+    const FeatureRow('Unlock all 8 Templates', false, true),
+    const FeatureRow('Premium PDF Layout Styles', false, true),
+    const FeatureRow('Detailed AI Scores & Suggestions', false, true),
+    const FeatureRow('Draggable Live CV Editors', false, true),
+    const FeatureRow('Shareable Resumes (Phase 3)', false, true),
+    const FeatureRow('Priority Support', false, true),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -14,135 +31,214 @@ class UpgradeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Upgrade to PRO'),
+        title: const Text('Upgrade Plan'),
       ),
       body: GradientBackground(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Unlock Unlimited Potential',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Header Title with Gradient look (using ShaderMask)
+                ShaderMask(
+                  shaderCallback: (bounds) => const LinearGradient(
+                    colors: [Colors.purpleAccent, Colors.blueAccent],
+                  ).createShader(bounds),
+                  child: Text(
+                    'Unlock Resumind Pro ⚡',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Unlock all professional templates and get unlimited resume generations optimized by Gemini AI.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
+                const SizedBox(height: 8),
+                const Text(
+                  'Build unlimited professional CVs',
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              Expanded(
-                child: Row(
+                const SizedBox(height: 24),
+
+                // Feature comparison table card
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Expanded(child: Text('Feature', style: TextStyle(fontWeight: FontWeight.bold))),
+                            SizedBox(width: 48, child: Text('Free', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white60))),
+                            SizedBox(width: 48, child: Text('Pro', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueAccent))),
+                          ],
+                        ),
+                        const Divider(),
+                        ..._features.map((feature) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Row(
+                                  children: [
+                                    Expanded(child: Text(feature.name, style: const TextStyle(fontSize: 13, color: Colors.white70))),
+                                  SizedBox(
+                                    width: 48,
+                                    child: feature.free
+                                        ? const Icon(Icons.check_circle, color: Colors.green, size: 18)
+                                        : const Icon(Icons.cancel, color: Colors.red, size: 18),
+                                  ),
+                                  SizedBox(
+                                    width: 48,
+                                    child: feature.pro
+                                        ? const Icon(Icons.check_circle, color: Colors.blueAccent, size: 18)
+                                        : const Icon(Icons.cancel, color: Colors.red, size: 18),
+                                  ),
+                                ],
+                              ),
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Selected plans side by side
+                Row(
                   children: [
+                    // Monthly Card
                     Expanded(
-                      child: _buildPlanCard(
-                        context,
+                      child: _buildSelectablePlanCard(
                         title: 'Monthly',
                         price: AppConstants.proMonthlyPriceNpr,
                         period: 'month',
                         planId: 'monthly',
+                        subtitle: 'Flexible access',
                       ),
                     ),
                     const SizedBox(width: 16),
+                    // Yearly Card
                     Expanded(
-                      child: _buildPlanCard(
-                        context,
+                      child: _buildSelectablePlanCard(
                         title: 'Yearly',
                         price: AppConstants.proYearlyPriceNpr,
                         period: 'year',
                         planId: 'yearly',
-                        isPopular: true,
+                        badgeText: 'MOST POPULAR',
+                        savingText: 'Save 33%',
+                        subtitle: 'Best value deal',
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 32),
+
+                // Continue Khalti Button
+                CustomButton(
+                  text: 'Continue with Khalti',
+                  onPressed: () {
+                    context.push('/payment/$_selectedPlan');
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildPlanCard(
-    BuildContext context, {
+  Widget _buildSelectablePlanCard({
     required String title,
     required num price,
     required String period,
     required String planId,
-    bool isPopular = false,
+    required String subtitle,
+    String? badgeText,
+    String? savingText,
   }) {
+    final isSelected = _selectedPlan == planId;
     final theme = Theme.of(context);
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: isPopular
-            ? BorderSide(color: theme.colorScheme.primary, width: 2)
-            : BorderSide.none,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPlan = planId;
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            width: 2.5,
+            color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+          ),
+          color: Colors.white.withOpacity(isSelected ? 0.08 : 0.03),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (isPopular)
-              Align(
-                alignment: Alignment.topRight,
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (savingText != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        savingText,
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  Text(
+                    Formatters.formatCurrency(price),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Colors.blueAccent),
+                  ),
+                  Text('per $period', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                  const SizedBox(height: 8),
+                  Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                ],
+              ),
+            ),
+            if (badgeText != null)
+              Positioned(
+                top: -12,
+                left: 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'BEST VALUE',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    badgeText,
+                    style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
               ),
-            Text(
-              title,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              Formatters.formatCurrency(price),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary,
-              ),
-            ),
-            Text(
-              'per $period',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
-              ),
-            ),
-            const Spacer(),
-            CustomButton(
-              text: 'Choose',
-              onPressed: () {
-                context.push('/payment/$planId');
-              },
-            ),
           ],
         ),
       ),
     );
   }
+}
+
+class FeatureRow {
+  final String name;
+  final bool free;
+  final bool pro;
+
+  const FeatureRow(this.name, this.free, this.pro);
 }

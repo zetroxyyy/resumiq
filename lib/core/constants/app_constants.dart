@@ -8,4 +8,5 @@ class AppConstants {
   static const String appVersion = '1.0.0';
   static const String cloudinaryCloudName = 'dkrnhqhe9';
   static const String cloudinaryUploadPreset = 'resumind';
+  static const String khaltiPublicKey = 'test_public_key_dc74e355c783431887e2a62d007baf39';
 }

@@ -27,6 +27,7 @@ class RouterNotifier extends ChangeNotifier {
     });
   }
 }
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   return RouterNotifier(ref);
@@ -40,6 +41,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final authStateAsync = ref.watch(authStateChangesProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: routerNotifier,
     redirect: (context, state) {
