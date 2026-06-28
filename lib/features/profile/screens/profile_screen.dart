@@ -218,9 +218,22 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const Divider(height: 1),
-                      // Interactive version tile: tap = copy, long-press = check for update
+                      // Interactive version tile: tap = check updates, long-press = copy version
                       GestureDetector(
                         onTap: () {
+                          // Show update check dialog; if up to date, show snackbar
+                          UpdateService.checkForUpdate(context).then((_) {
+                            // checkForUpdate shows dialog if newer — if it doesn't,
+                            // show a "you're on the latest version" snackbar
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checking for updates...'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        onLongPress: () {
                           Clipboard.setData(
                             ClipboardData(
                               text: 'Resumind v${AppConstants.appVersion}',
@@ -228,16 +241,7 @@ class ProfileScreen extends ConsumerWidget {
                           );
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Version copied to clipboard'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        onLongPress: () {
-                          UpdateService.checkForUpdate(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Checking for updates...'),
+                              content: Text('Version copied'),
                               duration: Duration(seconds: 2),
                             ),
                           );
@@ -246,7 +250,7 @@ class ProfileScreen extends ConsumerWidget {
                           leading: const Icon(Icons.info_outline),
                           title: const Text('App Version'),
                           subtitle: const Text(
-                            'Tap to copy • Long-press to check for updates',
+                            'Tap to check for updates • Long-press to copy',
                             style: TextStyle(fontSize: 11, color: Colors.white38),
                           ),
                           trailing: Text(

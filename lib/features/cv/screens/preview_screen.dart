@@ -1227,7 +1227,7 @@ class _HistoryBottomSheetState extends ConsumerState<_HistoryBottomSheet> {
     final versionsAsync = ref.watch(
       cvVersionsProvider((uid: widget.userId, cvId: widget.cvId)),
     );
-    final fmt = DateFormat('dd MMM yyyy, HH:mm');
+
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -1306,71 +1306,123 @@ class _HistoryBottomSheetState extends ConsumerState<_HistoryBottomSheet> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final v = versions[index];
+                        final isCurrentVersion = index == 0; // newest = current
                         final isRestoring = _restoringId == v.id;
                         final name =
                             v.generatedContent['personalInfo']?['fullName']
                                 as String? ??
                                 'Unknown';
+                        final fmt2 = DateFormat('MMM dd, yyyy \'at\' h:mm a');
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor:
-                                Colors.deepPurpleAccent.withOpacity(0.15),
-                            child: Icon(
-                              _changedByIcon(v.changedBy),
-                              color: Colors.deepPurpleAccent,
-                              size: 20,
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Text(
-                                'Version #${v.versionNumber}',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.white12,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  _changedByLabel(v.changedBy),
-                                  style: const TextStyle(
-                                      fontSize: 10, color: Colors.white60),
-                                ),
-                              ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name,
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 12)),
-                              Text(fmt.format(v.changedAt),
-                                  style: const TextStyle(
-                                      color: Colors.white38, fontSize: 11)),
-                            ],
-                          ),
-                          isThreeLine: true,
-                          trailing: isRestoring
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2),
-                                )
-                              : TextButton(
-                                  onPressed: () => _showRestoreConfirm(v),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.deepPurpleAccent,
+                        return Container(
+                          decoration: isCurrentVersion
+                              ? BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.deepPurpleAccent,
+                                    width: 1.5,
                                   ),
-                                  child: const Text('Restore'),
+                                  borderRadius: BorderRadius.circular(12),
+                                )
+                              : null,
+                          margin: isCurrentVersion
+                              ? const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2)
+                              : null,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isCurrentVersion
+                                  ? Colors.deepPurpleAccent.withOpacity(0.3)
+                                  : Colors.deepPurpleAccent.withOpacity(0.15),
+                              child: Icon(
+                                _changedByIcon(v.changedBy),
+                                color: Colors.deepPurpleAccent,
+                                size: 20,
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  'Version #${v.versionNumber}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isCurrentVersion
+                                        ? Colors.deepPurpleAccent
+                                        : null,
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isCurrentVersion
+                                        ? Colors.deepPurpleAccent
+                                            .withOpacity(0.2)
+                                        : Colors.white12,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    _changedByLabel(v.changedBy),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isCurrentVersion
+                                          ? Colors.deepPurpleAccent
+                                          : Colors.white60,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(name,
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 12)),
+                                Text(fmt2.format(v.changedAt),
+                                    style: const TextStyle(
+                                        color: Colors.white38, fontSize: 11)),
+                              ],
+                            ),
+                            isThreeLine: true,
+                            trailing: isCurrentVersion
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepPurpleAccent
+                                          .withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: Colors.deepPurpleAccent
+                                              .withOpacity(0.5)),
+                                    ),
+                                    child: const Text(
+                                      'Current',
+                                      style: TextStyle(
+                                        color: Colors.deepPurpleAccent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                : isRestoring
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      )
+                                    : TextButton(
+                                        onPressed: () =>
+                                            _showRestoreConfirm(v),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor:
+                                              Colors.deepPurpleAccent,
+                                        ),
+                                        child: const Text('Restore'),
+                                      ),
+                          ),
                         );
                       },
                     );
