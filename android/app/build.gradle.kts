@@ -47,3 +47,17 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// Ensure all plugin subprojects compile with SDK 36.
+// This prevents build failures from plugins whose compileSdkVersion is lower
+// than what their transitive androidx dependencies require.
+subprojects {
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            val androidExt = project.extensions.findByName("android")
+            if (androidExt is com.android.build.gradle.BaseExtension) {
+                androidExt.compileSdkVersion(36)
+            }
+        }
+    }
+}

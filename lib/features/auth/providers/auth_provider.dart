@@ -130,14 +130,6 @@ class AuthNotifier extends StateNotifier<UserModel?> {
     }
   }
 
-  // Developer preview/anonymous login to support platforms without Google Sign-In setup
-  Future<void> signInAnonymously() async {
-    try {
-      await _auth.signInAnonymously();
-    } catch (e) {
-      throw Exception(_getCleanErrorMessage(e));
-    }
-  }
 
   Future<void> signOut() async {
     _userDocSubscription?.cancel();

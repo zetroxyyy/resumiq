@@ -23,10 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString()),
-            action: SnackBarAction(
-              label: 'Mock Login',
-              onPressed: _handleMockSignIn,
-            ),
           ),
         );
       }
@@ -37,22 +33,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _handleMockSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authProvider.notifier).signInAnonymously();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mock Login failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,18 +147,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Developer/Mock Sign-In option
-                  TextButton(
-                    onPressed: _handleMockSignIn,
-                    child: const Text(
-                      'Developer Preview Mode (Mock)',
-                      style: TextStyle(
-                        color: Colors.white38,
-                        fontSize: 14,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
                   const Spacer(),
                   // Terms Text
                   const Text(
