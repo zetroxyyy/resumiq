@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/gradient_background.dart';
+import '../../auth/providers/auth_provider.dart';
 
-class AdminScreen extends StatelessWidget {
+class AdminScreen extends ConsumerWidget {
   const AdminScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final user = ref.watch(authProvider);
+    final isAdmin = user?.email == AppConstants.adminEmail;
 
     return Scaffold(
       appBar: AppBar(
@@ -61,6 +66,30 @@ class AdminScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 3,
+        type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          if (index == 3) return;
+          if (index == 0) {
+            context.go('/home');
+          } else if (index == 1) {
+            context.push('/cv/input');
+          } else if (index == 2) {
+            context.go('/profile');
+          }
+        },
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          if (isAdmin)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.admin_panel_settings),
+              label: 'Admin',
+            ),
+        ],
       ),
     );
   }

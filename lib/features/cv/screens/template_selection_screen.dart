@@ -4,7 +4,12 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 
 class TemplateSelectionScreen extends StatelessWidget {
-  const TemplateSelectionScreen({super.key});
+  final String cvId;
+
+  const TemplateSelectionScreen({
+    super.key,
+    required this.cvId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +29,7 @@ class TemplateSelectionScreen extends StatelessWidget {
                 'Choose a design style',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 16),
@@ -110,7 +116,7 @@ class TemplateSelectionScreen extends StatelessWidget {
             CustomButton(
               text: 'Select & Preview',
               onPressed: () {
-                context.push('/cv/preview/mock-cv-id');
+                context.push('/cv/preview/$cvId');
               },
             ),
           ],
