@@ -229,18 +229,9 @@ class _TemplateSelectionScreenState extends ConsumerState<TemplateSelectionScree
                                 Expanded(
                                   child: Stack(
                                     children: [
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          color: template.previewColor.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.description_outlined,
-                                            size: 40,
-                                            color: template.previewColor,
-                                          ),
-                                        ),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: TemplateThumbnail(templateName: template.name),
                                       ),
                                       if (isLocked)
                                         Positioned(
@@ -335,4 +326,320 @@ class TemplateItemData {
     required this.isPremium,
     required this.previewColor,
   });
+}
+
+class TemplateThumbnail extends StatelessWidget {
+  final String templateName;
+
+  const TemplateThumbnail({
+    super.key,
+    required this.templateName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    switch (templateName.toLowerCase()) {
+      case 'simple':
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(width: 30, height: 4, color: Colors.black),
+              const SizedBox(height: 3),
+              Container(width: 50, height: 2, color: Colors.black26),
+              const SizedBox(height: 6),
+              Container(height: 1, color: Colors.black12),
+              const SizedBox(height: 8),
+              _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+            ],
+          ),
+        );
+      case 'basic':
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 40, height: 5, color: Colors.black),
+              const SizedBox(height: 3),
+              Container(width: 60, height: 2, color: Colors.black26),
+              const SizedBox(height: 8),
+              // Section with full-width light gray background bar
+              Container(
+                width: double.infinity,
+                height: 7,
+                color: Colors.grey[300],
+                padding: const EdgeInsets.only(left: 4),
+                alignment: Alignment.centerLeft,
+                child: Container(width: 25, height: 3, color: Colors.black87),
+              ),
+              const SizedBox(height: 6),
+              _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+            ],
+          ),
+        );
+      case 'modern':
+        return Container(
+          color: Colors.white,
+          child: Row(
+            children: [
+              // Purple sidebar
+              Container(
+                width: 16,
+                color: const Color(0xFF6C63FF).withOpacity(0.2),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                child: Column(
+                  children: [
+                    Container(width: 10, height: 10, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF6C63FF))),
+                    const SizedBox(height: 8),
+                    Container(width: 8, height: 2, color: Colors.black38),
+                    const SizedBox(height: 3),
+                    Container(width: 8, height: 2, color: Colors.black38),
+                  ],
+                ),
+              ),
+              // Main content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(width: 30, height: 5, color: const Color(0xFF6C63FF)),
+                      const SizedBox(height: 8),
+                      _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      case 'europass':
+        return Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              // Blue header bar
+              Container(
+                height: 16,
+                color: const Color(0xFF004494),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(width: 25, height: 4, color: Colors.white),
+                    Container(width: 20, height: 3, color: Colors.white60),
+                  ],
+                ),
+              ),
+              // Content rows
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // left column (dates)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(width: 12, height: 3, color: Colors.black26),
+                          const SizedBox(height: 12),
+                          Container(width: 12, height: 3, color: Colors.black26),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      // right column (details)
+                      Expanded(
+                        child: _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      case 'executive':
+        return Container(
+          color: const Color(0xFFFAFAF7),
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(width: 40, height: 5, color: const Color(0xFF1B2A4A)),
+              const SizedBox(height: 3),
+              Container(width: 25, height: 1, color: const Color(0xFFC9A84C)),
+              const SizedBox(height: 4),
+              Container(width: 60, height: 2, color: Colors.black38),
+              const SizedBox(height: 8),
+              // Section with gold left accent bar
+              Row(
+                children: [
+                  Container(width: 2, height: 8, color: const Color(0xFFC9A84C)),
+                  const SizedBox(width: 4),
+                  Container(width: 30, height: 4, color: const Color(0xFF1B2A4A)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+            ],
+          ),
+        );
+      case 'nepal special':
+        return Container(
+          color: Colors.white,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Nepal Flag colors thin borders
+              Container(height: 2, color: const Color(0xFFDC143C)),
+              Container(height: 1, color: const Color(0xFF003893)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Stack(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(child: Container(width: 35, height: 5, color: Colors.black)),
+                          const SizedBox(height: 8),
+                          // personal info table rows
+                          _buildTableRow(),
+                          const SizedBox(height: 4),
+                          _buildTableRow(),
+                          const SizedBox(height: 8),
+                          _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+                        ],
+                      ),
+                      // Dashed border photo placeholder at top-right
+                      Positioned(
+                        top: 10,
+                        right: 0,
+                        child: Container(
+                          width: 18,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black38, style: BorderStyle.solid),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('Photo', style: TextStyle(fontSize: 4, color: Colors.black38)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      case 'professional':
+        return Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              // Purple Header band
+              Container(
+                width: double.infinity,
+                height: 16,
+                color: const Color(0xFF6C63FF),
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: 30, height: 4, color: Colors.white),
+                    const SizedBox(height: 2),
+                    Container(width: 60, height: 2, color: Colors.white54),
+                  ],
+                ),
+              ),
+              // Body
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: [
+                      // left column
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(width: 15, height: 3, color: const Color(0xFF6C63FF)),
+                            const SizedBox(height: 4),
+                            Container(width: 25, height: 2, color: Colors.black26),
+                            const SizedBox(height: 8),
+                            Container(width: 15, height: 3, color: const Color(0xFF6C63FF)),
+                            const SizedBox(height: 4),
+                            Container(width: 20, height: 2, color: Colors.black26),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // right column
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(width: 20, height: 3, color: const Color(0xFF6C63FF)),
+                            const SizedBox(height: 4),
+                            _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      default: // Clean
+        return Container(
+          color: Colors.white,
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 40, height: 6, color: const Color(0xFF1A1A2E)),
+              const SizedBox(height: 3),
+              Container(width: 60, height: 2, color: Colors.black26),
+              const SizedBox(height: 6),
+              Container(height: 1, color: Colors.black12),
+              const SizedBox(height: 8),
+              _buildLines(crossAlign: CrossAxisAlignment.start, color: Colors.black38),
+            ],
+          ),
+        );
+    }
+  }
+
+  Widget _buildLines({required CrossAxisAlignment crossAlign, required Color color}) {
+    return Column(
+      crossAxisAlignment: crossAlign,
+      children: [
+        Container(width: 50, height: 2, color: color),
+        const SizedBox(height: 3),
+        Container(width: 70, height: 2, color: color),
+        const SizedBox(height: 3),
+        Container(width: 40, height: 2, color: color),
+      ],
+    );
+  }
+
+  Widget _buildTableRow() {
+    return Row(
+      children: [
+        Container(width: 15, height: 2, color: Colors.black38),
+        const SizedBox(width: 8),
+        Container(width: 35, height: 2, color: Colors.black12),
+      ],
+    );
+  }
 }

@@ -20,10 +20,12 @@ import '../services/gemini_service.dart';
 
 class PreviewScreen extends ConsumerStatefulWidget {
   final String cvId;
+  final String? templateName;
 
   const PreviewScreen({
     super.key,
     required this.cvId,
+    this.templateName,
   });
 
   @override
@@ -81,7 +83,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     setState(() => _isDownloading = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final pdfBytes = await _pdfService.generatePdf(cv, cv.template);
+      final pdfBytes = await _pdfService.generatePdf(cv, widget.templateName ?? cv.template);
       final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
       final path = await _pdfService.savePdfToDevice(pdfBytes, fullName);
 
@@ -186,7 +188,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   children: [
                     Expanded(
                       child: PdfPreview(
-                        build: (format) => _pdfService.generatePdf(cv, cv.template),
+                        build: (format) => _pdfService.generatePdf(cv, widget.templateName ?? cv.template),
                         useActions: false,
                         canChangePageFormat: false,
                         loadingWidget: const Center(child: CircularProgressIndicator()),

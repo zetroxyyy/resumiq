@@ -124,7 +124,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/cv/preview/:cvId',
         builder: (context, state) {
           final cvId = state.pathParameters['cvId'] ?? '';
-          return PreviewScreen(cvId: cvId);
+          final template = state.uri.queryParameters['template'];
+          return PreviewScreen(cvId: cvId, templateName: template);
         },
       ),
       GoRoute(
