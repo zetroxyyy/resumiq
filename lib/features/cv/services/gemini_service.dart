@@ -148,6 +148,15 @@ class GeminiService {
       // Save CV document
       await cvDocRef.set(cvModel.toJson());
 
+      // Save initial version snapshot (version 1 = "First generated")
+      await cvDocRef.collection('versions').add({
+        'versionNumber': 1,
+        'generatedContent': parsedJson,
+        'template': cvType,
+        'changedBy': 'initial',
+        'changedAt': Timestamp.now(),
+      });
+
       // Increment generations count in User Profile
       await FirebaseFirestore.instance
           .collection('users')

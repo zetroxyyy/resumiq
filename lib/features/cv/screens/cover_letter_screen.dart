@@ -571,7 +571,16 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () {
+              onPressed: () async {
+                // Save CV snapshot before regenerating (version history)
+                await saveVersion(
+                  uid: userId,
+                  cvId: cv.id,
+                  generatedContent:
+                      Map<String, dynamic>.from(cv.generatedContent),
+                  template: cv.template,
+                  changedBy: 'regenerated',
+                );
                 setState(() {
                   _hasCoverLetter = false;
                 });

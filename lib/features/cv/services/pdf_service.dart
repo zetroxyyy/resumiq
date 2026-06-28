@@ -2008,10 +2008,6 @@ class PdfService {
     final experiences = content['workExperience'] as List? ?? [];
     final educations = content['education'] as List? ?? [];
     final skillsMap = content['skills'] as Map<String, dynamic>? ?? {};
-    final certifications = content['certifications'] as List? ?? [];
-    final projects = content['projects'] as List? ?? [];
-    final achievements = content['achievements'] as List? ?? [];
-    final references = content['references'] as String? ?? '';
 
     final name = personalInfo['fullName'] as String? ?? 'Nepal Special CV';
     final email = personalInfo['email'] as String? ?? '';
