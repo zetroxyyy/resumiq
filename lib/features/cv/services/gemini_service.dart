@@ -66,9 +66,9 @@ class GeminiService {
         await _initializeApiKey();
       }
 
-      debugPrint("Gemini: initializing with model gemini-1.5-pro-latest");
+      debugPrint("Gemini: initializing with model gemini-1.5-flash");
       final model = GenerativeModel(
-        model: 'gemini-1.5-pro-latest',
+        model: 'gemini-1.5-flash',
         apiKey: _apiKey,
         generationConfig: GenerationConfig(
           responseMimeType: 'application/json',
@@ -236,7 +236,7 @@ class GeminiService {
 
     // 2. Instantiate Gemini 1.5 Pro model
     final model = GenerativeModel(
-      model: 'gemini-1.5-pro-latest',
+      model: 'gemini-1.5-flash',
       apiKey: _apiKey,
       generationConfig: GenerationConfig(
         responseMimeType: 'application/json',
@@ -273,7 +273,7 @@ class GeminiService {
     }
 
     final model = GenerativeModel(
-      model: 'gemini-1.5-pro-latest',
+      model: 'gemini-1.5-flash',
       apiKey: _apiKey,
       systemInstruction: Content.system(
         'You are an expert cover letter writer. Write a professional, personalized '
