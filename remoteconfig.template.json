@@ -1,0 +1,10 @@
+{
+  "parameters": {
+    "GEMINI_API_KEY": {
+      "defaultValue": {
+        "value": "AQ.Ab8RN6I-85ooY4ShqB204fxp8_dgeJrEcfTYTPvRUEBP0u4qrw"
+      },
+      "valueType": "STRING"
+    }
+  }
+}

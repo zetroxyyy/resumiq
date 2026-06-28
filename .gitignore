@@ -65,3 +65,6 @@ api_keys.dart
 
 # pubspec.lock (libraries should not commit this)
 pubspec.lock
+
+# Firebase CLI cache
+.firebase/
