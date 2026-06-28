@@ -199,6 +199,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
     final theme = Theme.of(context);
     final isMonthly = widget.plan == 'monthly';
     final price = isMonthly ? AppConstants.proMonthlyPriceNpr : AppConstants.proYearlyPriceNpr;
+    final user = ref.watch(authProvider);
 
     if (_isSubmitted) {
       return Scaffold(
@@ -373,9 +374,54 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                     ),
                     const SizedBox(height: 12),
 
-                    // Step 3 Card
+                    // Step 3 Card (User Gmail Remarks)
                     _buildStepCard(
                       number: "3",
+                      title: "Add your Gmail in the payment remarks",
+                      content: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user?.email ?? '',
+                                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: user?.email ?? ''));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Gmail copied')),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'This helps us verify your payment faster',
+                            style: TextStyle(fontSize: 11, color: Colors.white38),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Step 4 Card
+                    _buildStepCard(
+                      number: "4",
                       title: "Tap 'I\'ve Paid' below after completing payment",
                     ),
                     const SizedBox(height: 32),

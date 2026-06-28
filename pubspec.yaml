@@ -5,7 +5,7 @@ description: "Resumind - AI-powered resume builder and career assistant"
 publish_to: 'none'
 
 # Version
-version: 1.2.2+6
+version: 1.2.3+7
 
 environment:
   sdk: ^3.12.2
