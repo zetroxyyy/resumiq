@@ -678,8 +678,14 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                       onChanged: (value) {
                         final isPro = user?.isPro ?? false;
                         if (!isPro) {
+                          // 1. Keep toggle state OFF (do not set to value)
+                          setState(() {
+                            _atsOptimized = false;
+                          });
+                          // 2. Show upgrade bottom sheet immediately
                           _showUpgradePrompt('Optimize for ATS');
                         } else {
+                          // 3. Toggle normally for Pro users
                           setState(() {
                             _atsOptimized = value;
                           });

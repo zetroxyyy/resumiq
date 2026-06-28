@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/cv_model.dart';
 
@@ -14,67 +15,78 @@ class GeminiService {
     String? jobDescription,
     bool atsOptimized = false,
   }) async {
-    // 1. Fetch API Key from Firebase Remote Config with 1-hour cache expiry
-    final remoteConfig = FirebaseRemoteConfig.instance;
     try {
-      await remoteConfig.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 30),
-        minimumFetchInterval: const Duration(hours: 1),
-      ));
-      await remoteConfig.fetchAndActivate();
-    } catch (e) {
-      // Fallback/log config fetch issue
-    }
+      debugPrint("RemoteConfig: fetching key...");
+      final remoteConfig = FirebaseRemoteConfig.instance;
+      
+      try {
+        await remoteConfig.setConfigSettings(RemoteConfigSettings(
+          fetchTimeout: const Duration(seconds: 10),
+          minimumFetchInterval: const Duration(hours: 1),
+        ));
+        await remoteConfig.fetchAndActivate();
+        debugPrint("RemoteConfig: key fetched successfully");
+      } catch (e) {
+        debugPrint("RemoteConfig: fetch failed, using cache: $e");
+      }
 
-    final apiKey = remoteConfig.getString('GEMINI_API_KEY');
-    if (apiKey.isEmpty) {
-      throw Exception('API Key not configured. Please contact the administrator.');
-    }
+      String apiKey = remoteConfig.getString('GEMINI_API_KEY');
+      if (apiKey.isEmpty) {
+        throw Exception('API key not configured. Please contact support.');
+      }
 
-    // 2. Instantiate Gemini model
-    final model = GenerativeModel(
-      model: 'gemini-1.5-pro',
-      apiKey: apiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-      ),
-      systemInstruction: Content.system(
-        'You are a world-class professional CV writer. Transform raw unstructured information into a perfectly structured, professional CV. '
-        'Think deeply. Extract all details. Use strong professional language. '
-        'Respond ONLY with valid JSON. Do NOT wrap it in markdown code fences like ```json. Do not write explanation. '
-        'Follow this JSON schema format exactly:\n'
-        '{\n'
-        '  "personalInfo": {"fullName": "", "email": "", "phone": "", "location": "", "linkedIn": "", "portfolio": ""},\n'
-        '  "summary": "",\n'
-        '  "workExperience": [{"company": "", "role": "", "startDate": "", "endDate": "", "current": false, "responsibilities": []}],\n'
-        '  "education": [{"institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "grade": []}],\n'
-        '  "skills": {"technical": [], "soft": [], "languages": []},\n'
-        '  "certifications": [{"name": "", "issuer": "", "date": "", "url": ""}],\n'
-        '  "projects": [{"name": "", "description": "", "tech": [], "url": ""}],\n'
-        '  "achievements": [],\n'
-        '  "references": "",\n'
-        '  "cvType": "",\n'
-        '  "score": 85,\n'
-        '  "scoreFeedback": []\n'
-        '}\n'
-        'Scoring criteria: completeness 40%, language impact 30%, structure 30%.'
-      ),
-    );
-
-    final prompt = _buildPrompt(rawInput, cvType, jobDescription, atsOptimized: atsOptimized);
-
-    try {
-      return await _callGeminiWithRetry(
-        model,
-        prompt,
-        uid,
-        rawInput,
-        cvType,
-        jobDescription,
-        atsOptimized: atsOptimized,
+      debugPrint("Gemini: initializing with model gemini-1.5-pro");
+      final model = GenerativeModel(
+        model: 'gemini-1.5-pro',
+        apiKey: apiKey,
+        generationConfig: GenerationConfig(
+          responseMimeType: 'application/json',
+        ),
+        systemInstruction: Content.system(
+          'You are a world-class professional CV writer. Transform raw unstructured information into a perfectly structured, professional CV. '
+          'Think deeply. Extract all details. Use strong professional language. '
+          'Respond ONLY with valid JSON. Do NOT wrap it in markdown code fences like ```json. Do not write explanation. '
+          'Follow this JSON schema format exactly:\n'
+          '{\n'
+          '  "personalInfo": {"fullName": "", "email": "", "phone": "", "location": "", "linkedIn": "", "portfolio": ""},\n'
+          '  "summary": "",\n'
+          '  "workExperience": [{"company": "", "role": "", "startDate": "", "endDate": "", "current": false, "responsibilities": []}],\n'
+          '  "education": [{"institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "grade": []}],\n'
+          '  "skills": {"technical": [], "soft": [], "languages": []},\n'
+          '  "certifications": [{"name": "", "issuer": "", "date": "", "url": ""}],\n'
+          '  "projects": [{"name": "", "description": "", "tech": [], "url": ""}],\n'
+          '  "achievements": [],\n'
+          '  "references": "",\n'
+          '  "cvType": "",\n'
+          '  "score": 85,\n'
+          '  "scoreFeedback": []\n'
+          '}\n'
+          'Scoring criteria: completeness 40%, language impact 30%, structure 30%.'
+        ),
       );
+
+      final prompt = _buildPrompt(rawInput, cvType, jobDescription, atsOptimized: atsOptimized);
+
+      try {
+        debugPrint("Gemini: sending request...");
+        final result = await _callGeminiWithRetry(
+          model,
+          prompt,
+          uid,
+          rawInput,
+          cvType,
+          jobDescription,
+          atsOptimized: atsOptimized,
+        );
+        debugPrint("Gemini: response received");
+        return result;
+      } catch (e) {
+        debugPrint("Gemini: request failed: $e");
+        rethrow;
+      }
     } catch (e) {
-      throw Exception('AI generation failed. Please try again.');
+      debugPrint("generateCv error: $e");
+      rethrow;
     }
   }
 
