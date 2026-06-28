@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -14,6 +15,7 @@ import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/widgets/pulsing_mic_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/cv_model.dart';
+import '../models/version_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
@@ -275,7 +277,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
             ),
             actions: [
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                margin: const EdgeInsets.only(right: 4),
                 child: Chip(
                   label: Text(
                     'Score: $score/100',
@@ -284,6 +286,11 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   backgroundColor: scoreColor,
                   padding: EdgeInsets.zero,
                 ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.history_rounded),
+                tooltip: 'Version History',
+                onPressed: () => _showHistoryBottomSheet(cv, user.uid),
               ),
             ],
           ),
@@ -568,6 +575,21 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       },
     );
   }
+
+  void _showHistoryBottomSheet(CvModel cv, String userId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _HistoryBottomSheet(
+          cvId: cv.id,
+          userId: userId,
+          currentTemplate: cv.template,
+        );
+      },
+    );
+  }
 }
 
 class _EditCvBottomSheet extends StatefulWidget {
@@ -647,6 +669,16 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
     _editedContent['references'] = _referencesController.text;
 
     try {
+      // Snapshot current state before overwriting (version history)
+      await saveVersion(
+        uid: widget.userId,
+        cvId: widget.cv.id,
+        generatedContent:
+            Map<String, dynamic>.from(widget.cv.generatedContent),
+        template: widget.cv.template,
+        changedBy: 'manual_edit',
+      );
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
@@ -927,6 +959,15 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
         transcribedText: _transcribedText.trim(),
       );
 
+      // Snapshot current state before overwriting (version history)
+      await saveVersion(
+        uid: widget.userId,
+        cvId: widget.cv.id,
+        generatedContent: Map<String, dynamic>.from(widget.cv.generatedContent),
+        template: widget.cv.template,
+        changedBy: 'voice_edit',
+      );
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
@@ -1091,6 +1132,282 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── History Bottom Sheet ─────────────────────────────────────────────────────
+
+class _HistoryBottomSheet extends ConsumerStatefulWidget {
+  final String cvId;
+  final String userId;
+  final String currentTemplate;
+
+  const _HistoryBottomSheet({
+    required this.cvId,
+    required this.userId,
+    required this.currentTemplate,
+  });
+
+  @override
+  ConsumerState<_HistoryBottomSheet> createState() =>
+      _HistoryBottomSheetState();
+}
+
+class _HistoryBottomSheetState extends ConsumerState<_HistoryBottomSheet> {
+  String? _restoringId;
+
+  String _changedByLabel(String changedBy) {
+    switch (changedBy) {
+      case 'manual_edit':
+        return 'Manual Edit';
+      case 'voice_edit':
+        return 'Voice Edit';
+      case 'regenerated':
+        return 'Regenerated';
+      case 'initial':
+        return 'Initial Version';
+      case 'before_restore':
+        return 'Before Restore';
+      default:
+        return changedBy;
+    }
+  }
+
+  IconData _changedByIcon(String changedBy) {
+    switch (changedBy) {
+      case 'manual_edit':
+        return Icons.edit_note_rounded;
+      case 'voice_edit':
+        return Icons.mic_rounded;
+      case 'regenerated':
+        return Icons.auto_awesome_rounded;
+      case 'before_restore':
+        return Icons.restore_rounded;
+      default:
+        return Icons.history_rounded;
+    }
+  }
+
+  Future<void> _restoreVersion(VersionModel version) async {
+    setState(() => _restoringId = version.id);
+    try {
+      await restoreVersion(
+        uid: widget.userId,
+        cvId: widget.cvId,
+        version: version,
+      );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restored to version #${version.versionNumber} ✓'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Restore failed: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _restoringId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final versionsAsync = ref.watch(
+      cvVersionsProvider((uid: widget.userId, cvId: widget.cvId)),
+    );
+    final fmt = DateFormat('dd MMM yyyy, HH:mm');
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      maxChildSize: 0.92,
+      minChildSize: 0.4,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.history_rounded,
+                      color: Colors.deepPurpleAccent),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Version History',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              Text(
+                'Up to 10 snapshots are kept. Tap Restore to roll back.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.white54),
+              ),
+              const Divider(height: 24),
+              Expanded(
+                child: versionsAsync.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) =>
+                      Center(child: Text('Error loading history: $e')),
+                  data: (versions) {
+                    if (versions.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.history_rounded,
+                                size: 56, color: Colors.white24),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No version history yet.\nEdit your CV to create snapshots.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white38),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: versions.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final v = versions[index];
+                        final isRestoring = _restoringId == v.id;
+                        final name =
+                            v.generatedContent['personalInfo']?['fullName']
+                                as String? ??
+                                'Unknown';
+
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                Colors.deepPurpleAccent.withOpacity(0.15),
+                            child: Icon(
+                              _changedByIcon(v.changedBy),
+                              color: Colors.deepPurpleAccent,
+                              size: 20,
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Text(
+                                'Version #${v.versionNumber}',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white12,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _changedByLabel(v.changedBy),
+                                  style: const TextStyle(
+                                      fontSize: 10, color: Colors.white60),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name,
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
+                              Text(fmt.format(v.changedAt),
+                                  style: const TextStyle(
+                                      color: Colors.white38, fontSize: 11)),
+                            ],
+                          ),
+                          isThreeLine: true,
+                          trailing: isRestoring
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
+                                )
+                              : TextButton(
+                                  onPressed: () => _showRestoreConfirm(v),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.deepPurpleAccent,
+                                  ),
+                                  child: const Text('Restore'),
+                                ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRestoreConfirm(VersionModel version) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restore Version?'),
+        content: Text(
+          'This will restore version #${version.versionNumber} (${_changedByLabel(version.changedBy)}). '
+          'Your current state will be saved as a new version first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _restoreVersion(version);
+            },
+            style: FilledButton.styleFrom(
+                backgroundColor: Colors.deepPurpleAccent),
+            child: const Text('Restore'),
+          ),
+        ],
       ),
     );
   }
