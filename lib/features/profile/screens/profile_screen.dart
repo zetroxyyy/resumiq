@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app/theme.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/update_service.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/pro_badge.dart';
@@ -216,12 +218,44 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(Icons.info_outline),
-                        title: const Text('App Version'),
-                        trailing: Text(
-                          AppConstants.appVersion,
-                          style: const TextStyle(color: Colors.white60, fontWeight: FontWeight.bold),
+                      // Interactive version tile: tap = copy, long-press = check for update
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(
+                            ClipboardData(
+                              text: 'Resumind v${AppConstants.appVersion}',
+                            ),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Version copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        onLongPress: () {
+                          UpdateService.checkForUpdate(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Checking for updates...'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        child: ListTile(
+                          leading: const Icon(Icons.info_outline),
+                          title: const Text('App Version'),
+                          subtitle: const Text(
+                            'Tap to copy • Long-press to check for updates',
+                            style: TextStyle(fontSize: 11, color: Colors.white38),
+                          ),
+                          trailing: Text(
+                            'v${AppConstants.appVersion}',
+                            style: const TextStyle(
+                              color: Colors.deepPurpleAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ],

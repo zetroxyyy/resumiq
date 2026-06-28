@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/cv_model.dart';
+import '../models/version_model.dart';
 import '../services/gemini_service.dart';
 
 class CvInputState {
@@ -106,3 +107,97 @@ final cvDetailProvider = StreamProvider.family<CvModel?, String>((ref, cvId) {
           ? CvModel.fromJson({...snap.data()!, 'id': snap.id})
           : null);
 });
+
+// ─── Version History ──────────────────────────────────────────────────────────
+
+/// Streams the version history for a given CV (max 10, newest first).
+final cvVersionsProvider =
+    StreamProvider.family<List<VersionModel>, ({String uid, String cvId})>(
+        (ref, args) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(args.uid)
+      .collection('cvs')
+      .doc(args.cvId)
+      .collection('versions')
+      .orderBy('versionNumber', descending: true)
+      .limit(10)
+      .snapshots()
+      .map((snap) => snap.docs
+          .map((doc) => VersionModel.fromJson(doc.data(), doc.id))
+          .toList());
+});
+
+/// Saves a snapshot of the current CV state as a new version document.
+/// Called BEFORE mutating the CV document (so the snapshot captures the old state).
+/// Automatically prunes to a maximum of 10 versions (oldest removed first).
+Future<void> saveVersion({
+  required String uid,
+  required String cvId,
+  required Map<String, dynamic> generatedContent,
+  required String template,
+  required String changedBy,
+}) async {
+  final versionsRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('cvs')
+      .doc(cvId)
+      .collection('versions');
+
+  // Count existing versions
+  final existing = await versionsRef.orderBy('versionNumber').get();
+  final nextNumber = (existing.docs.isNotEmpty
+          ? (existing.docs.last.data()['versionNumber'] as int? ?? 0)
+          : 0) +
+      1;
+
+  // Prune oldest if we already have 10
+  if (existing.docs.length >= 10) {
+    final oldest = existing.docs.first;
+    await versionsRef.doc(oldest.id).delete();
+  }
+
+  await versionsRef.add({
+    'versionNumber': nextNumber,
+    'generatedContent': generatedContent,
+    'template': template,
+    'changedBy': changedBy,
+    'changedAt': Timestamp.now(),
+  });
+}
+
+/// Restores a CV to a previous version snapshot.
+Future<void> restoreVersion({
+  required String uid,
+  required String cvId,
+  required VersionModel version,
+}) async {
+  final cvRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('cvs')
+      .doc(cvId);
+
+  // First snapshot the current state as a version
+  final currentSnap = await cvRef.get();
+  if (currentSnap.exists) {
+    final data = currentSnap.data()!;
+    await saveVersion(
+      uid: uid,
+      cvId: cvId,
+      generatedContent:
+          (data['generatedContent'] as Map<String, dynamic>?) ?? {},
+      template: data['template'] as String? ?? '',
+      changedBy: 'before_restore',
+    );
+  }
+
+  // Now restore
+  await cvRef.update({
+    'generatedContent': version.generatedContent,
+    'template': version.template,
+    'version': FieldValue.increment(1),
+    'updatedAt': Timestamp.now(),
+  });
+}

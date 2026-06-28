@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/update_service.dart';
 import '../../../core/widgets/gradient_background.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       if (mounted) {
         context.go('/login');
       }
+      // After navigation settles, silently check for updates (3 s total)
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          UpdateService.checkForUpdate(context);
+        }
+      });
     });
   }
 
