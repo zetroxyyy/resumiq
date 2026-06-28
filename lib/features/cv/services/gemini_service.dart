@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class GeminiService {
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
 
   String _apiKey = '';
 
@@ -90,8 +90,11 @@ scoreFeedback: 2-3 specific improvement suggestions as strings.
     debugPrint('Gemini: sending request to REST API...');
 
     final response = await http.post(
-      Uri.parse('$_baseUrl?key=$_apiKey'),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': _apiKey,
+      },
       body: jsonEncode({
         'contents': [
           {
@@ -161,8 +164,11 @@ Return ONLY the cover letter text. No JSON. No explanation.
 ''';
 
     final response = await http.post(
-      Uri.parse('$_baseUrl?key=$_apiKey'),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': _apiKey,
+      },
       body: jsonEncode({
         'contents': [
           {
@@ -198,8 +204,11 @@ Return ONLY valid JSON with the same structure. No markdown, no explanation.
 ''';
 
     final response = await http.post(
-      Uri.parse('$_baseUrl?key=$_apiKey'),
-      headers: {'Content-Type': 'application/json'},
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': _apiKey,
+      },
       body: jsonEncode({
         'contents': [
           {
