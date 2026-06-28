@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1053761221218",
+    "project_id": "resumind-app-01",
+    "storage_bucket": "resumind-app-01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1053761221218:android:be3fc89c953423e46e973b",
+        "android_client_info": {
+          "package_name": "com.resumind.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1053761221218-l9ia6gs7jglpbto1i1hfk58466b5ph8m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.resumind.app",
+            "certificate_hash": "f1f283813cdca979b2fc5cebec61018ae9c806f1"
+          }
+        },
+        {
+          "client_id": "1053761221218-shnp0np7s6uf51bk82r0foo28gkikei3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKTGt5xvf79535UiFCYGsK_87lzcDkRQU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1053761221218-shnp0np7s6uf51bk82r0foo28gkikei3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
