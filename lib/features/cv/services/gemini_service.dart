@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class GeminiService {
   static const String _baseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
   String _apiKey = '';
 
@@ -16,7 +16,7 @@ class GeminiService {
       final rc = FirebaseRemoteConfig.instance;
       await rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: const Duration(hours: 1),
+        minimumFetchInterval: Duration.zero,
       ));
       await rc.fetchAndActivate();
       final key = rc.getString('GEMINI_API_KEY').trim();
@@ -107,12 +107,13 @@ scoreFeedback: 2-3 specific improvement suggestions as strings.
       }),
     ).timeout(const Duration(seconds: 60));
 
-    debugPrint('Gemini: response status ${response.statusCode}');
+    debugPrint('Using key starting with: ${_apiKey.substring(0, _apiKey.length >= 10 ? 10 : _apiKey.length)}');
+    debugPrint('Full URL: ${_baseUrl}?key=HIDDEN');
 
     if (response.statusCode != 200) {
-      debugPrint('Gemini error body: ${response.body}');
-      throw Exception(
-          'AI generation failed (${response.statusCode}). Please try again.');
+      final errorBody = response.body;
+      debugPrint('Gemini error body: $errorBody');
+      throw Exception('Error ${response.statusCode}: $errorBody');
     }
 
     final responseData = jsonDecode(response.body);
