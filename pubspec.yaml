@@ -72,7 +72,6 @@ dependencies:
   google_fonts: ^6.2.1
   shared_preferences: ^2.2.3
   cloudinary_public: ^0.23.1
-  khalti_flutter: any
   url_launcher: ^6.3.1
 
 dev_dependencies:
@@ -126,9 +125,4 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-# khalti_flutter 3.0.0 has a TabBarTheme→TabBarThemeData breaking change with
-# Flutter 3.27+. There is no newer version on pub.dev. We use a local patched
-# copy in packages/khalti_flutter that fixes this source-level incompatibility.
-dependency_overrides:
-  khalti_flutter:
-    path: packages/khalti_flutter
+

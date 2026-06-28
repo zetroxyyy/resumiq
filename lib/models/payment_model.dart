@@ -5,10 +5,12 @@ class PaymentModel {
   final String userId;
   final int amount; // in paisa (NPR * 100)
   final String plan; // 'monthly' or 'yearly'
-  final String status; // 'pending', 'completed', or 'failed'
-  final String? khaltiToken;
-  final String? khaltiTransactionId;
+  final String status; // 'pending', 'verified', or 'rejected'
+  final String? esewaTransactionId;
+  final String? userGmail;
   final DateTime createdAt;
+  final String? verifiedBy;
+  final DateTime? verifiedAt;
 
   const PaymentModel({
     required this.id,
@@ -16,9 +18,11 @@ class PaymentModel {
     required this.amount,
     required this.plan,
     required this.status,
-    this.khaltiToken,
-    this.khaltiTransactionId,
+    this.esewaTransactionId,
+    this.userGmail,
     required this.createdAt,
+    this.verifiedBy,
+    this.verifiedAt,
   });
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
@@ -28,11 +32,15 @@ class PaymentModel {
       amount: json['amount'] as int? ?? 0,
       plan: json['plan'] as String? ?? 'monthly',
       status: json['status'] as String? ?? 'pending',
-      khaltiToken: json['khaltiToken'] as String?,
-      khaltiTransactionId: json['khaltiTransactionId'] as String?,
+      esewaTransactionId: json['esewaTransactionId'] as String?,
+      userGmail: json['userGmail'] as String?,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      verifiedBy: json['verifiedBy'] as String?,
+      verifiedAt: json['verifiedAt'] != null
+          ? (json['verifiedAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -43,9 +51,11 @@ class PaymentModel {
       'amount': amount,
       'plan': plan,
       'status': status,
-      'khaltiToken': khaltiToken,
-      'khaltiTransactionId': khaltiTransactionId,
+      'esewaTransactionId': esewaTransactionId,
+      'userGmail': userGmail,
       'createdAt': Timestamp.fromDate(createdAt),
+      'verifiedBy': verifiedBy,
+      'verifiedAt': verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
     };
   }
 }

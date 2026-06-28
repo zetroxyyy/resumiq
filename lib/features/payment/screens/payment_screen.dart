@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:khalti_flutter/khalti_flutter.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/gradient_background.dart';
@@ -21,35 +21,38 @@ class PaymentScreen extends ConsumerStatefulWidget {
   ConsumerState<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PreviewKhaltiPaymentLogo extends StatelessWidget {
-  const _PreviewKhaltiPaymentLogo();
+class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTickerProviderStateMixin {
+  bool _isProcessing = false;
+  bool _isSubmitted = false;
+  
+  // For the checkmark animation
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
+  final String _merchantNumber = "9812345678"; // Dummy merchant eSewa number
+
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFF5C2D91),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Text(
-          'K',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
     );
   }
-}
 
-class _PaymentScreenState extends ConsumerState<PaymentScreen> {
-  bool _isProcessing = false;
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
-  Future<void> _handlePaymentSuccess(String token, String transactionId, int amountInPaisa) async {
+  Future<void> _submitPaymentReceipt(String transactionId) async {
+    if (transactionId.trim().isEmpty) return;
+    
     setState(() => _isProcessing = true);
     final user = ref.read(authProvider);
 
@@ -63,125 +66,125 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
 
     try {
       final now = DateTime.now();
-      final durationDays = widget.plan == 'yearly' ? 365 : 30;
-      final expiryDate = now.add(Duration(days: durationDays));
+      final isMonthly = widget.plan == 'monthly';
+      final price = isMonthly ? AppConstants.proMonthlyPriceNpr : AppConstants.proYearlyPriceNpr;
+      final amountInPaisa = price * 100;
 
-      final paymentCollection = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('payments');
-      final paymentDocRef = paymentCollection.doc();
+      // 1. Create top-level /payments/{id}
+      final paymentsRef = FirebaseFirestore.instance.collection('payments');
+      final paymentId = paymentsRef.doc().id;
 
       final payment = PaymentModel(
-        id: paymentDocRef.id,
+        id: paymentId,
         userId: user.uid,
         amount: amountInPaisa,
         plan: widget.plan,
-        status: 'completed',
-        khaltiToken: token,
-        khaltiTransactionId: transactionId,
+        status: 'pending',
+        esewaTransactionId: transactionId.trim(),
+        userGmail: user.email,
         createdAt: now,
       );
 
-      // 1. Create PaymentModel in Firestore
-      await paymentDocRef.set(payment.toJson());
+      // Save to top-level collection for admin
+      await paymentsRef.doc(paymentId).set(payment.toJson());
 
-      // 2. Update User Document
+      // Save to user subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({
-        'tier': 'pro',
-        'tierGrantedBy': 'payment',
-        'tierExpiresAt': Timestamp.fromDate(expiryDate),
+          .collection('payments')
+          .doc(paymentId)
+          .set(payment.toJson());
+
+      setState(() {
+        _isSubmitted = true;
+        _isProcessing = false;
       });
-
-      // Update local state if needed (or auth synchronizer handles it)
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Welcome to Pro! 🎉'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.go('/home');
-      }
+      _animationController.forward();
     } catch (e) {
+      setState(() => _isProcessing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to complete payment transaction: $e')),
+          SnackBar(content: Text('Failed to submit receipt: $e')),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
       }
     }
   }
 
-  void _payWithKhalti(int price) {
-    final amountInPaisa = price * 100;
-    final isMonthly = widget.plan == 'monthly';
+  void _showTransactionIdSheet() {
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-    try {
-      final config = PaymentConfig(
-        amount: amountInPaisa,
-        productIdentity: 'resumind-pro-${widget.plan}',
-        productName: 'Resumind Pro - ${isMonthly ? "Monthly" : "Yearly"}',
-      );
-
-      KhaltiScope.of(context).pay(
-        config: config,
-        onSuccess: (PaymentSuccessModel success) async {
-          await _handlePaymentSuccess(
-            success.idx,
-            success.token,
-            success.amount,
-          );
-        },
-        onFailure: (PaymentFailureModel failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Payment Failed: ${failure.message}'),
-              backgroundColor: Colors.redAccent,
-            ),
-          );
-        },
-        onCancel: () {
-          if (mounted) {
-            context.pop(); // Pop back to upgrade screen
-          }
-        },
-      );
-    } catch (e) {
-      // In case we are running in an environment where KhaltiScope throws an error (e.g. desktop/unsupported browser)
-      // display a dialog giving them options to complete the payment for development & simulation
-      _showDevSandboxPaymentDialog(amountInPaisa);
-    }
-  }
-
-  void _showDevSandboxPaymentDialog(int amountInPaisa) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Khalti Dev Sandbox'),
-        content: const Text(
-          'We detected an environment without standard mobile Khalti support (e.g. Simulator/Desktop). Would you like to simulate a successful payment?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _handlePaymentSuccess('mock_token', 'mock_txn_id', amountInPaisa);
-            },
-            child: const Text('Simulate Success'),
-          ),
-        ],
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Confirm Your Payment',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Open eSewa → Transactions → copy the ID',
+                  style: TextStyle(color: Colors.white54, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: controller,
+                  decoration: InputDecoration(
+                    labelText: 'eSewa Transaction ID',
+                    hintText: 'e.g. 8AB123456C',
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter the Transaction ID';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.pop(context);
+                      _submitPaymentReceipt(controller.text);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Submit', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -189,106 +192,297 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isMonthly = widget.plan == 'monthly';
-    final price = isMonthly
-        ? AppConstants.proMonthlyPriceNpr
-        : AppConstants.proYearlyPriceNpr;
+    final price = isMonthly ? AppConstants.proMonthlyPriceNpr : AppConstants.proYearlyPriceNpr;
+    final user = ref.watch(authProvider);
+
+    if (_isSubmitted) {
+      return Scaffold(
+        body: GradientBackground(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.green, width: 3),
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.green,
+                          size: 64,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      const Text(
+                        'Payment Submitted! ✅',
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        "We'll verify your payment within a few hours and activate your Pro subscription. You'll see the Pro badge appear on your home screen once verified.",
+                        style: TextStyle(color: Colors.white70, height: 1.5),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        onPressed: () => context.go('/home'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurpleAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Back to Home', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Complete Payment'),
       ),
       body: GradientBackground(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Order Summary',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+        child: _isProcessing
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Order Summary Card
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Order Summary',
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Resumind Pro - ${isMonthly ? "Monthly" : "Yearly"}'),
+                                Text(Formatters.formatCurrency(price)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Divider(),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Total Amount', style: TextStyle(fontWeight: FontWeight.bold)),
+                                Text(
+                                  Formatters.formatCurrency(price),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // How to Pay Title
+                    const Text(
+                      'How to Pay',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Step 1 Card
+                    _buildStepCard(
+                      number: "1",
+                      title: "Open eSewa on your phone",
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Step 2 Card (with QR)
+                    _buildStepCard(
+                      number: "2",
+                      title: "Scan this QR code or send to our eSewa",
+                      content: Column(
                         children: [
-                          Text(
-                            'Resumind Pro - ${isMonthly ? "Monthly" : "Yearly"}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(Formatters.formatCurrency(price)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Total Amount',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          const SizedBox(height: 16),
+                          Container(
+                            width: 250,
+                            height: 250,
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Image.asset(
+                              'assets/images/esewa_qr.png',
+                              fit: BoxFit.contain,
                             ),
                           ),
-                          Text(
-                            Formatters.formatCurrency(price),
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _merchantNumber,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: _merchantNumber));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('eSewa number copied')),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Step 3 Card (User Gmail Remarks)
+                    _buildStepCard(
+                      number: "3",
+                      title: "Add your Gmail in the remarks",
+                      content: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user?.email ?? '',
+                                    style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: user?.email ?? ''));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Gmail copied')),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'This is how we verify your payment',
+                            style: TextStyle(fontSize: 11, color: Colors.white38),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Step 4 Card
+                    _buildStepCard(
+                      number: "4",
+                      title: "Tap 'I\'ve Paid' below after completing payment",
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Submit Buttons
+                    ElevatedButton(
+                      onPressed: _showTransactionIdSheet,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurpleAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        "I've Paid",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(color: Colors.white38),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-              const Spacer(),
-              ElevatedButton(
-                onPressed: _isProcessing ? null : () => _payWithKhalti(price),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5C2D91),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+      ),
+    );
+  }
+
+  Widget _buildStepCard({
+    required String number,
+    required String title,
+    Widget? content,
+  }) {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: Colors.deepPurpleAccent,
+                  child: Text(
+                    number,
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
-                child: _isProcessing
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _PreviewKhaltiPaymentLogo(),
-                          SizedBox(width: 12),
-                          Text(
-                            'Pay with Khalti',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+            if (content != null) content,
+          ],
         ),
       ),
     );

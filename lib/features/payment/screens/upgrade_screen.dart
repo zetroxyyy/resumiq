@@ -134,9 +134,9 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                 ),
                 const SizedBox(height: 32),
 
-                // Continue Khalti Button
+                // Continue Pay with eSewa Button
                 CustomButton(
-                  text: 'Continue with Khalti',
+                  text: 'Pay with eSewa',
                   onPressed: () {
                     context.push('/payment/$_selectedPlan');
                   },

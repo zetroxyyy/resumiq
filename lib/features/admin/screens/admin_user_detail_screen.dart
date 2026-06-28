@@ -354,16 +354,49 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
                                   itemBuilder: (context, index) {
                                     final payment = payments[index];
                                     final double nprAmount = payment.amount / 100.0;
-                                    return ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: const Icon(Icons.payment, color: Colors.green),
-                                      title: Text(
-                                        'Plan: ${payment.plan.toUpperCase()} | NPR $nprAmount',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                      ),
-                                      subtitle: Text(
-                                        'Status: ${payment.status.toUpperCase()} | ${DateFormat('yyyy-MM-dd HH:mm').format(payment.createdAt)}',
-                                        style: const TextStyle(fontSize: 11, color: Colors.white60),
+                                    
+                                    Color statusColor;
+                                    switch (payment.status) {
+                                      case 'verified':
+                                        statusColor = Colors.green;
+                                        break;
+                                      case 'rejected':
+                                        statusColor = Colors.redAccent;
+                                        break;
+                                      default:
+                                        statusColor = Colors.orange;
+                                    }
+
+                                    return Card(
+                                      margin: const EdgeInsets.only(bottom: 8),
+                                      color: Colors.white.withOpacity(0.02),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      child: ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        leading: Icon(Icons.receipt_long, color: statusColor),
+                                        title: Text(
+                                          'Plan: ${payment.plan.toUpperCase()} | NPR $nprAmount',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const SizedBox(height: 4),
+                                            Text('Txn ID: ${payment.esewaTransactionId ?? "N/A"}', style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Status: ${payment.status.toUpperCase()} | Created: ${DateFormat('yyyy-MM-dd HH:mm').format(payment.createdAt)}',
+                                              style: const TextStyle(fontSize: 11, color: Colors.white54),
+                                            ),
+                                            if (payment.verifiedAt != null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Verified: ${DateFormat('yyyy-MM-dd HH:mm').format(payment.verifiedAt!)}',
+                                                style: const TextStyle(fontSize: 11, color: Colors.green),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
                                       ),
                                     );
                                   },

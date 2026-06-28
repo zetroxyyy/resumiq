@@ -39,10 +39,8 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   ];
 
   final SpeechToText _speech = SpeechToText();
-  bool _speechInitialized = false;
   bool _isListeningInfo = false;
   bool _isListeningJob = false;
-  bool _isNepali = false;
   bool _hasMicPermission = false;
 
   @override
@@ -115,71 +113,35 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     );
   }
 
-  Future<bool> _initSpeech() async {
-    if (_speechInitialized) return true;
+  Future<void> _startListening({
+    required TextEditingController controller,
+    required VoidCallback onStop,
+  }) async {
     final init = await _speech.initialize(
-      onError: (val) {
-        debugPrint('Speech error: $val');
-        _handleSpeechStop();
-      },
+      onError: (error) => debugPrint('Speech error: $error'),
       onStatus: (status) {
         debugPrint('Speech status: $status');
         if (status == 'done' || status == 'notListening') {
-          _handleSpeechStop();
+          onStop();
         }
       },
+      debugLogging: true,
     );
-    if (mounted) {
-      setState(() {
-        _speechInitialized = init;
-      });
-    }
-    return init;
-  }
-
-  void _handleSpeechStop() {
-    if (mounted) {
-      setState(() {
-        _isListeningInfo = false;
-        _isListeningJob = false;
-      });
-    }
-  }
-
-  Future<void> _startListening({
-    required TextEditingController controller,
-    required bool isNepali,
-    required VoidCallback onStop,
-  }) async {
-    final init = await _initSpeech();
     if (!init) return;
-
-    String localeId = isNepali ? 'ne_NP' : 'en_US';
-    if (isNepali) {
-      final locales = await _speech.locales();
-      final hasNepali = locales.any((l) =>
-          l.localeId.replaceAll('_', '-').toLowerCase() == 'ne-np' ||
-          l.localeId.split('_').first == 'ne');
-      if (!hasNepali) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Nepali voice not supported on this device, using English'),
-            ),
-          );
-        }
-        localeId = 'en_US';
-      }
-    }
 
     final baseText = controller.text.trim();
 
     await _speech.listen(
-      localeId: localeId,
+      localeId: 'en_US',
+      listenFor: const Duration(seconds: 60),
+      pauseFor: const Duration(seconds: 4),
+      partialResults: true,
+      cancelOnError: false,
+      sampleRate: 44100,
       onResult: (result) {
         if (mounted) {
           setState(() {
-            final words = result.recognizedWords;
+            final words = result.recognizedWords.trim();
             if (words.isNotEmpty) {
               controller.text = baseText.isEmpty ? words : '$baseText $words';
               controller.selection = TextSelection.fromPosition(
@@ -187,6 +149,9 @@ class _InputScreenState extends ConsumerState<InputScreen> {
               );
             }
           });
+          if (result.finalResult) {
+            onStop();
+          }
         }
       },
     );
@@ -416,34 +381,9 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        ChoiceChip(
-                          label: const Text('EN'),
-                          selected: !_isNepali,
-                          onSelected: (selected) {
-                            if (selected) setState(() => _isNepali = false);
-                          },
-                          selectedColor: theme.colorScheme.primary,
-                          labelStyle: TextStyle(
-                            color: !_isNepali ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: const Text('नेपाली'),
-                          selected: _isNepali,
-                          onSelected: (selected) {
-                            if (selected) setState(() => _isNepali = true);
-                          },
-                          selectedColor: theme.colorScheme.primary,
-                          labelStyle: TextStyle(
-                            color: _isNepali ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      'Voice Typing',
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
                     ),
                     Row(
                       children: [
@@ -462,7 +402,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                                 setState(() => _isListeningInfo = true);
                                 _startListening(
                                   controller: _infoController,
-                                  isNepali: _isNepali,
                                   onStop: () => setState(() => _isListeningInfo = false),
                                 );
                               }
@@ -576,7 +515,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                                         setState(() => _isListeningJob = true);
                                         _startListening(
                                           controller: _jobController,
-                                          isNepali: false,
                                           onStop: () => setState(() => _isListeningJob = false),
                                         );
                                       }

@@ -36,19 +36,23 @@ class UpdateService {
       final data = jsonDecode(body) as Map<String, dynamic>;
       final rawTag = data['tag_name'] as String? ?? '';
       final htmlUrl = data['html_url'] as String? ?? '';
+      final assets = data['assets'] as List? ?? [];
+      
+      String downloadUrl = htmlUrl;
+      if (assets.isNotEmpty) {
+        final firstAsset = assets[0] as Map<String, dynamic>;
+        downloadUrl = firstAsset['browser_download_url'] as String? ?? htmlUrl;
+      }
 
-      // Strip leading 'v' and any suffix after the semver (e.g. v1.3.0-phase3 → 1.3.0)
-      final remoteVersion = rawTag
-          .replaceFirst(RegExp(r'^v'), '')
-          .split('-')
-          .first
-          .trim();
+      // Extract ONLY the numeric part (e.g. "v1.2.1-bugfixes" -> "1.2.1")
+      final remoteVersion = RegExp(r'v?(\d+\.\d+\.\d+)').firstMatch(rawTag)?.group(1) ?? '';
+      final currentVersion = RegExp(r'v?(\d+\.\d+\.\d+)').firstMatch(AppConstants.appVersion)?.group(1) ?? '';
 
       if (remoteVersion.isEmpty) return;
 
-      if (_isNewerVersion(remoteVersion, AppConstants.appVersion)) {
+      if (_isNewerVersion(remoteVersion, currentVersion)) {
         if (context.mounted) {
-          _showUpdateDialog(context, remoteVersion, htmlUrl);
+          _showUpdateDialog(context, remoteVersion, downloadUrl);
         }
       }
     } catch (_) {
@@ -59,12 +63,12 @@ class UpdateService {
   /// Returns true if [remote] is strictly greater than [current].
   /// Both must be in "major.minor.patch" semver format.
   static bool _isNewerVersion(String remote, String current) {
-    final remoteParts = remote.split('.').map(int.tryParse).toList();
-    final currentParts = current.split('.').map(int.tryParse).toList();
+    final remoteParts = remote.split('.').map((x) => int.tryParse(x) ?? 0).toList();
+    final currentParts = current.split('.').map((x) => int.tryParse(x) ?? 0).toList();
 
     for (int i = 0; i < 3; i++) {
-      final r = (i < remoteParts.length ? remoteParts[i] : null) ?? 0;
-      final c = (i < currentParts.length ? currentParts[i] : null) ?? 0;
+      final r = (i < remoteParts.length ? remoteParts[i] : 0);
+      final c = (i < currentParts.length ? currentParts[i] : 0);
       if (r > c) return true;
       if (r < c) return false;
     }

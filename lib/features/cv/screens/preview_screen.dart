@@ -825,9 +825,7 @@ class _VoiceEditBottomSheet extends StatefulWidget {
 
 class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
   final SpeechToText _speech = SpeechToText();
-  bool _speechInitialized = false;
   bool _isListening = false;
-  bool _isNepali = false;
   String _transcribedText = '';
   bool _isApplying = false;
 
@@ -885,46 +883,25 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
         setState(() => _isListening = false);
       }
     } else {
-      if (!_speechInitialized) {
-        final init = await _speech.initialize(
-          onError: (e) {
-            debugPrint('Speech error: $e');
+      final init = await _speech.initialize(
+        onError: (e) {
+          debugPrint('Speech error: $e');
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
+        },
+        onStatus: (status) {
+          debugPrint('Speech status: $status');
+          if (status == 'done' || status == 'notListening') {
             if (mounted) {
               setState(() => _isListening = false);
             }
-          },
-          onStatus: (status) {
-            debugPrint('Speech status: $status');
-            if (status == 'done' || status == 'notListening') {
-              if (mounted) {
-                setState(() => _isListening = false);
-              }
-            }
-          },
-        );
-        if (mounted) {
-          setState(() {
-            _speechInitialized = init;
-          });
-        }
-        if (!init) return;
-      }
-
-      String localeId = _isNepali ? 'ne_NP' : 'en_US';
-      if (_isNepali) {
-        final locales = await _speech.locales();
-        final supportsNepali = locales.any((l) =>
-            l.localeId.replaceAll('_', '-').toLowerCase() == 'ne-np' ||
-            l.localeId.split('_').first == 'ne');
-        if (!supportsNepali) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Nepali voice not supported on this device, using English')),
-            );
           }
-          localeId = 'en_US';
-        }
-      }
+        },
+        debugLogging: true,
+      );
+
+      if (!init) return;
 
       if (mounted) {
         setState(() {
@@ -934,12 +911,20 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
       }
 
       await _speech.listen(
-        localeId: localeId,
+        localeId: 'en_US',
+        listenFor: const Duration(seconds: 60),
+        pauseFor: const Duration(seconds: 4),
+        partialResults: true,
+        cancelOnError: false,
+        sampleRate: 44100,
         onResult: (result) {
           if (mounted) {
             setState(() {
               _transcribedText = result.recognizedWords;
             });
+            if (result.finalResult) {
+              setState(() => _isListening = false);
+            }
           }
         },
       );
@@ -1047,7 +1032,7 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tell me what to change in English or Nepali',
+                      'Tell me what to change in your CV',
                       style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
                     ),
                   ],
@@ -1059,39 +1044,7 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
               ],
             ),
             const Divider(height: 24),
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ChoiceChip(
-                    label: const Text('EN'),
-                    selected: !_isNepali,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _isNepali = false);
-                    },
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(
-                      color: !_isNepali ? Colors.black : Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text('नेपाली'),
-                    selected: _isNepali,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _isNepali = true);
-                    },
-                    selectedColor: theme.colorScheme.primary,
-                    labelStyle: TextStyle(
-                      color: _isNepali ? Colors.black : Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             Center(
               child: Column(
                 children: [
