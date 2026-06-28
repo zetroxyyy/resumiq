@@ -21,6 +21,17 @@ class CloudinaryService {
     );
   }
 
+  Future<String> uploadDocx({
+    required String filePath,
+    required String userId,
+  }) async {
+    return _uploadWithRetry(
+      filePath: filePath,
+      folder: 'resumind/users/$userId/cvs',
+      resourceType: CloudinaryResourceType.Auto,
+    );
+  }
+
   Future<String> uploadImage({
     required String filePath,
     required String userId,

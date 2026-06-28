@@ -9,11 +9,13 @@ class CvModel {
   final Map<String, dynamic> generatedContent;
   final String template;
   final String? pdfUrl;
+  final String? docxUrl;
   final String? shareUrl;
   final int? score;
   final List<String> scoreFeedback;
   final int version;
   final String cvType;
+  final bool atsOptimized;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,11 +28,13 @@ class CvModel {
     required this.generatedContent,
     required this.template,
     this.pdfUrl,
+    this.docxUrl,
     this.shareUrl,
     this.score,
     this.scoreFeedback = const [],
     this.version = 1,
     required this.cvType,
+    this.atsOptimized = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -45,11 +49,13 @@ class CvModel {
       generatedContent: (json['generatedContent'] as Map<String, dynamic>?) ?? {},
       template: json['template'] as String? ?? '',
       pdfUrl: json['pdfUrl'] as String?,
+      docxUrl: json['docxUrl'] as String?,
       shareUrl: json['shareUrl'] as String?,
       score: json['score'] as int?,
       scoreFeedback: List<String>.from(json['scoreFeedback'] as List? ?? []),
       version: json['version'] as int? ?? 1,
       cvType: json['cvType'] as String? ?? 'professional',
+      atsOptimized: json['atsOptimized'] as bool? ?? false,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -69,13 +75,55 @@ class CvModel {
       'generatedContent': generatedContent,
       'template': template,
       'pdfUrl': pdfUrl,
+      'docxUrl': docxUrl,
       'shareUrl': shareUrl,
       'score': score,
       'scoreFeedback': scoreFeedback,
       'version': version,
       'cvType': cvType,
+      'atsOptimized': atsOptimized,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
+  }
+
+  CvModel copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? rawInput,
+    String? jobDescription,
+    Map<String, dynamic>? generatedContent,
+    String? template,
+    String? pdfUrl,
+    String? docxUrl,
+    String? shareUrl,
+    int? score,
+    List<String>? scoreFeedback,
+    int? version,
+    String? cvType,
+    bool? atsOptimized,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return CvModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      rawInput: rawInput ?? this.rawInput,
+      jobDescription: jobDescription ?? this.jobDescription,
+      generatedContent: generatedContent ?? this.generatedContent,
+      template: template ?? this.template,
+      pdfUrl: pdfUrl ?? this.pdfUrl,
+      docxUrl: docxUrl ?? this.docxUrl,
+      shareUrl: shareUrl ?? this.shareUrl,
+      score: score ?? this.score,
+      scoreFeedback: scoreFeedback ?? this.scoreFeedback,
+      version: version ?? this.version,
+      cvType: cvType ?? this.cvType,
+      atsOptimized: atsOptimized ?? this.atsOptimized,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

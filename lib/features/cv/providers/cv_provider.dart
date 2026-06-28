@@ -10,11 +10,13 @@ class CvInputState {
   final String rawInput;
   final String format;
   final String? jobDescription;
+  final bool atsOptimized;
 
   const CvInputState({
     required this.rawInput,
     required this.format,
     this.jobDescription,
+    this.atsOptimized = false,
   });
 }
 
@@ -61,6 +63,7 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         rawInput: inputData.rawInput,
         cvType: inputData.format,
         jobDescription: inputData.jobDescription,
+        atsOptimized: inputData.atsOptimized,
       );
 
       state = CvGenerationState(generatedCvId: cvId);
