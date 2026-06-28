@@ -1,10 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/widgets/custom_button.dart';
-import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/gradient_background.dart';
-import '../../../core/utils/validators.dart';
+import '../../../core/widgets/loading_overlay.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,26 +12,22 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _signInAnonymously() async {
+  Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      await FirebaseAuth.instance.signInAnonymously();
+      await ref.read(authProvider.notifier).signInWithGoogle();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign in: $e')),
+          SnackBar(
+            content: Text(e.toString()),
+            action: SnackBarAction(
+              label: 'Mock Login',
+              onPressed: _handleMockSignIn,
+            ),
+          ),
         );
       }
     } finally {
@@ -43,42 +37,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithEmail() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _handleMockSignIn() async {
     setState(() => _isLoading = true);
     try {
-      // In production we would do standard email auth.
-      // For now we do a mock successful sign in to allow testing.
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        // Automatically create account for ease of testing in Phase 1
-        try {
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-        } catch (signUpError) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to create account: $signUpError')),
-            );
-          }
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Login Error: ${e.message}')),
-          );
-        }
-      }
+      await ref.read(authProvider.notifier).signInAnonymously();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to sign in: $e')),
+          SnackBar(content: Text('Mock Login failed: $e')),
         );
       }
     } finally {
@@ -93,95 +59,137 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: GradientBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - 64,
-            ),
-            child: IntrinsicHeight(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(),
-                    Icon(
-                      Icons.description,
-                      size: 72,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Welcome to Resumind',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+      body: LoadingOverlay(
+        isLoading: _isLoading,
+        child: GradientBackground(
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              child: Column(
+                children: [
+                  const Spacer(),
+                  // Centered Upper Half: Logo + Brand
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Sign in to build your professional CV',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 48),
-                    CustomTextField(
-                      controller: _emailController,
-                      labelText: 'Email Address',
-                      hintText: 'name@example.com',
-                      prefixIcon: Icons.email_outlined,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: Validators.email,
-                      enabled: !_isLoading,
-                    ),
-                    const SizedBox(height: 16),
-                    CustomTextField(
-                      controller: _passwordController,
-                      labelText: 'Password',
-                      hintText: 'Enter password',
-                      isPassword: true,
-                      prefixIcon: Icons.lock_outline,
-                      validator: Validators.password,
-                      enabled: !_isLoading,
-                    ),
-                    const SizedBox(height: 24),
-                    CustomButton(
-                      text: 'Sign In',
-                      isLoading: _isLoading,
-                      onPressed: _signInWithEmail,
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider(color: Colors.white24)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'OR',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white38,
-                            ),
-                          ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.4),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
                         ),
-                        const Expanded(child: Divider(color: Colors.white24)),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    CustomButton(
-                      text: 'Continue with Google (Mock)',
-                      variant: CustomButtonVariant.secondary,
-                      isLoading: _isLoading,
-                      icon: Icons.login,
-                      onPressed: _signInAnonymously,
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'R',
+                      style: TextStyle(
+                        fontSize: 54,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        fontFamily: 'Poppins',
+                      ),
                     ),
-                    const Spacer(),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Resumind',
+                    style: theme.textTheme.headlineLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your career, powered by AI',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Google Sign-In Button
+                  InkWell(
+                    onTap: _handleGoogleSignIn,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Beautiful Google Colorful 'G' Icon
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'G',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Continue with Google',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Developer/Mock Sign-In option
+                  TextButton(
+                    onPressed: _handleMockSignIn,
+                    child: const Text(
+                      'Developer Preview Mode (Mock)',
+                      style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 14,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Terms Text
+                  const Text(
+                    'By continuing, you agree to our Terms of Service',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
           ),

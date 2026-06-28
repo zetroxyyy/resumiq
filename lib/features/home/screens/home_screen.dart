@@ -58,8 +58,8 @@ class HomeScreen extends ConsumerWidget {
                         radius: 28,
                         backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
                         child: Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
+                          user.name.isNotEmpty
+                              ? user.name[0].toUpperCase()
                               : 'U',
                           style: theme.textTheme.titleLarge?.copyWith(
                             color: theme.colorScheme.primary,
@@ -72,7 +72,7 @@ class HomeScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hello, ${user.displayName}!',
+                              'Hello, ${user.name}!',
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),

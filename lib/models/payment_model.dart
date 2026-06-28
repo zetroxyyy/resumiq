@@ -3,64 +3,35 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class PaymentModel {
   final String id;
   final String userId;
-  final String plan;
-  final double amount;
-  final String status;
-  final String paymentMethod;
-  final String transactionId;
+  final int amount; // in paisa (NPR * 100)
+  final String plan; // 'monthly' or 'yearly'
+  final String status; // 'pending', 'completed', or 'failed'
+  final String? khaltiToken;
+  final String? khaltiTransactionId;
   final DateTime createdAt;
-  final DateTime expiryDate;
 
   const PaymentModel({
     required this.id,
     required this.userId,
-    required this.plan,
     required this.amount,
+    required this.plan,
     required this.status,
-    required this.paymentMethod,
-    required this.transactionId,
+    this.khaltiToken,
+    this.khaltiTransactionId,
     required this.createdAt,
-    required this.expiryDate,
   });
-
-  PaymentModel copyWith({
-    String? id,
-    String? userId,
-    String? plan,
-    double? amount,
-    String? status,
-    String? paymentMethod,
-    String? transactionId,
-    DateTime? createdAt,
-    DateTime? expiryDate,
-  }) {
-    return PaymentModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      plan: plan ?? this.plan,
-      amount: amount ?? this.amount,
-      status: status ?? this.status,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
-      transactionId: transactionId ?? this.transactionId,
-      createdAt: createdAt ?? this.createdAt,
-      expiryDate: expiryDate ?? this.expiryDate,
-    );
-  }
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
     return PaymentModel(
       id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
-      plan: json['plan'] as String? ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: json['amount'] as int? ?? 0,
+      plan: json['plan'] as String? ?? 'monthly',
       status: json['status'] as String? ?? 'pending',
-      paymentMethod: json['paymentMethod'] as String? ?? '',
-      transactionId: json['transactionId'] as String? ?? '',
+      khaltiToken: json['khaltiToken'] as String?,
+      khaltiTransactionId: json['khaltiTransactionId'] as String?,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
-      expiryDate: json['expiryDate'] != null
-          ? (json['expiryDate'] as Timestamp).toDate()
           : DateTime.now(),
     );
   }
@@ -69,13 +40,12 @@ class PaymentModel {
     return {
       'id': id,
       'userId': userId,
-      'plan': plan,
       'amount': amount,
+      'plan': plan,
       'status': status,
-      'paymentMethod': paymentMethod,
-      'transactionId': transactionId,
+      'khaltiToken': khaltiToken,
+      'khaltiTransactionId': khaltiTransactionId,
       'createdAt': Timestamp.fromDate(createdAt),
-      'expiryDate': Timestamp.fromDate(expiryDate),
     };
   }
 }

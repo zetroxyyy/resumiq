@@ -44,8 +44,8 @@ class ProfileScreen extends ConsumerWidget {
                         radius: 40,
                         backgroundColor: theme.colorScheme.primary.withOpacity(0.15),
                         child: Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
+                          user.name.isNotEmpty
+                              ? user.name[0].toUpperCase()
                               : 'U',
                           style: theme.textTheme.headlineLarge?.copyWith(
                             color: theme.colorScheme.primary,
@@ -54,7 +54,7 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        user.displayName,
+                        user.name,
                         style: theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),

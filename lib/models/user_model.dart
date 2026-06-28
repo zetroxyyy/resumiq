@@ -3,43 +3,55 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserModel {
   final String uid;
   final String email;
-  final String displayName;
+  final String name;
   final String photoUrl;
-  final bool isFirstTime;
-  final bool isPro;
-  final int generationCount;
+  final String tier; // 'free' or 'pro'
+  final String? tierGrantedBy; // 'payment', 'admin', or null
+  final DateTime? tierExpiresAt;
+  final int generationsThisMonth;
+  final DateTime generationResetDate;
   final DateTime createdAt;
+  final bool isFirstTime;
 
   const UserModel({
     required this.uid,
     required this.email,
-    required this.displayName,
+    required this.name,
     required this.photoUrl,
-    this.isFirstTime = true,
-    this.isPro = false,
-    this.generationCount = 0,
+    this.tier = 'free',
+    this.tierGrantedBy,
+    this.tierExpiresAt,
+    this.generationsThisMonth = 0,
+    required this.generationResetDate,
     required this.createdAt,
+    this.isFirstTime = true,
   });
 
   UserModel copyWith({
     String? uid,
     String? email,
-    String? displayName,
+    String? name,
     String? photoUrl,
-    bool? isFirstTime,
-    bool? isPro,
-    int? generationCount,
+    String? tier,
+    String? tierGrantedBy,
+    DateTime? tierExpiresAt,
+    int? generationsThisMonth,
+    DateTime? generationResetDate,
     DateTime? createdAt,
+    bool? isFirstTime,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
       email: email ?? this.email,
-      displayName: displayName ?? this.displayName,
+      name: name ?? this.name,
       photoUrl: photoUrl ?? this.photoUrl,
-      isFirstTime: isFirstTime ?? this.isFirstTime,
-      isPro: isPro ?? this.isPro,
-      generationCount: generationCount ?? this.generationCount,
+      tier: tier ?? this.tier,
+      tierGrantedBy: tierGrantedBy ?? this.tierGrantedBy,
+      tierExpiresAt: tierExpiresAt ?? this.tierExpiresAt,
+      generationsThisMonth: generationsThisMonth ?? this.generationsThisMonth,
+      generationResetDate: generationResetDate ?? this.generationResetDate,
       createdAt: createdAt ?? this.createdAt,
+      isFirstTime: isFirstTime ?? this.isFirstTime,
     );
   }
 
@@ -47,14 +59,21 @@ class UserModel {
     return UserModel(
       uid: json['uid'] as String? ?? '',
       email: json['email'] as String? ?? '',
-      displayName: json['displayName'] as String? ?? '',
+      name: json['name'] as String? ?? '',
       photoUrl: json['photoUrl'] as String? ?? '',
-      isFirstTime: json['isFirstTime'] as bool? ?? true,
-      isPro: json['isPro'] as bool? ?? false,
-      generationCount: json['generationCount'] as int? ?? 0,
+      tier: json['tier'] as String? ?? 'free',
+      tierGrantedBy: json['tierGrantedBy'] as String?,
+      tierExpiresAt: json['tierExpiresAt'] != null
+          ? (json['tierExpiresAt'] as Timestamp).toDate()
+          : null,
+      generationsThisMonth: json['generationsThisMonth'] as int? ?? 0,
+      generationResetDate: json['generationResetDate'] != null
+          ? (json['generationResetDate'] as Timestamp).toDate()
+          : DateTime.now(),
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
+      isFirstTime: json['isFirstTime'] as bool? ?? true,
     );
   }
 
@@ -62,12 +81,17 @@ class UserModel {
     return {
       'uid': uid,
       'email': email,
-      'displayName': displayName,
+      'name': name,
       'photoUrl': photoUrl,
-      'isFirstTime': isFirstTime,
-      'isPro': isPro,
-      'generationCount': generationCount,
+      'tier': tier,
+      'tierGrantedBy': tierGrantedBy,
+      'tierExpiresAt': tierExpiresAt != null ? Timestamp.fromDate(tierExpiresAt!) : null,
+      'generationsThisMonth': generationsThisMonth,
+      'generationResetDate': Timestamp.fromDate(generationResetDate),
       'createdAt': Timestamp.fromDate(createdAt),
+      'isFirstTime': isFirstTime,
     };
   }
+
+  bool get isPro => tier == 'pro';
 }
