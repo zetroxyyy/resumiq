@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -84,11 +83,11 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     );
   }
 
-  Future<void> _handleDownloadAndUpload(dynamic cv, String userId) async {
+  Future<void> _handleDownloadAndUpload(dynamic cv, String userId, {required bool isPro}) async {
     setState(() => _isDownloading = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final pdfBytes = await _pdfService.generatePdf(cv, widget.templateName ?? cv.template);
+      final pdfBytes = await _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: isPro);
       final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
       final path = await _pdfService.savePdfToDevice(pdfBytes, fullName);
 
@@ -295,7 +294,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   children: [
                     Expanded(
                       child: PdfPreview(
-                        build: (format) => _pdfService.generatePdf(cv, widget.templateName ?? cv.template),
+                        build: (format) => _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: user.isPro),
                         useActions: false,
                         canChangePageFormat: false,
                         loadingWidget: const Center(child: CircularProgressIndicator()),
@@ -388,7 +387,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                                 icon: Icons.picture_as_pdf,
                                 label: 'PDF',
                                 isLoading: _isDownloading,
-                                onTap: () => _handleDownloadAndUpload(cv, user.uid),
+                                onTap: () => _handleDownloadAndUpload(cv, user.uid, isPro: user.isPro),
                               ),
                               _buildBottomActionWithProBadge(
                                 icon: Icons.description,
@@ -401,6 +400,19 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                                     _handleDocxExport(cv, user.uid);
                                   } else {
                                     _showUpgradePrompt('Word DOCX Export');
+                                  }
+                                },
+                              ),
+                              _buildBottomActionWithProBadge(
+                                icon: Icons.mail_outline,
+                                label: 'Cover Letter',
+                                isProOnly: true,
+                                isUserPro: user.isPro,
+                                onTap: () {
+                                  if (user.isPro) {
+                                    context.push('/cv/cover-letter/${cv.id}');
+                                  } else {
+                                    _showUpgradePrompt('Cover Letter Generator');
                                   }
                                 },
                               ),

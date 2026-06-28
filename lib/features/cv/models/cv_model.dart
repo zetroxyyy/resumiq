@@ -16,6 +16,9 @@ class CvModel {
   final int version;
   final String cvType;
   final bool atsOptimized;
+  final String? coverLetter;
+  final String? coverLetterPdfUrl;
+  final String? coverLetterDocxUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +38,9 @@ class CvModel {
     this.version = 1,
     required this.cvType,
     this.atsOptimized = false,
+    this.coverLetter,
+    this.coverLetterPdfUrl,
+    this.coverLetterDocxUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -56,6 +62,9 @@ class CvModel {
       version: json['version'] as int? ?? 1,
       cvType: json['cvType'] as String? ?? 'professional',
       atsOptimized: json['atsOptimized'] as bool? ?? false,
+      coverLetter: json['coverLetter'] as String?,
+      coverLetterPdfUrl: json['coverLetterPdfUrl'] as String?,
+      coverLetterDocxUrl: json['coverLetterDocxUrl'] as String?,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -82,6 +91,9 @@ class CvModel {
       'version': version,
       'cvType': cvType,
       'atsOptimized': atsOptimized,
+      'coverLetter': coverLetter,
+      'coverLetterPdfUrl': coverLetterPdfUrl,
+      'coverLetterDocxUrl': coverLetterDocxUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -103,6 +115,9 @@ class CvModel {
     int? version,
     String? cvType,
     bool? atsOptimized,
+    String? coverLetter,
+    String? coverLetterPdfUrl,
+    String? coverLetterDocxUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -122,6 +137,9 @@ class CvModel {
       version: version ?? this.version,
       cvType: cvType ?? this.cvType,
       atsOptimized: atsOptimized ?? this.atsOptimized,
+      coverLetter: coverLetter ?? this.coverLetter,
+      coverLetterPdfUrl: coverLetterPdfUrl ?? this.coverLetterPdfUrl,
+      coverLetterDocxUrl: coverLetterDocxUrl ?? this.coverLetterDocxUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

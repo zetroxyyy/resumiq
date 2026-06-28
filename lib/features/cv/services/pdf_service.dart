@@ -3,34 +3,38 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:qr/qr.dart';
+import 'package:intl/intl.dart';
 import '../models/cv_model.dart';
 
 class PdfService {
   const PdfService();
 
-  Future<Uint8List> generatePdf(CvModel cv, String templateName) async {
+  Future<Uint8List> generatePdf(CvModel cv, String templateName, {bool isPro = false}) async {
+    final qrUrl = _getQrUrl(cv);
+
     if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true) {
-      return _generateSimple(cv);
+      return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
     }
 
     final nameNormalized = templateName.toLowerCase().trim();
 
     if (nameNormalized == 'professional') {
-      return _generateProfessional(cv);
+      return _generateProfessional(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'simple') {
-      return _generateSimple(cv);
+      return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'basic') {
-      return _generateBasic(cv);
+      return _generateBasic(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'modern') {
-      return _generateModern(cv);
+      return _generateModern(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'europass') {
-      return _generateEuropass(cv);
+      return _generateEuropass(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'executive') {
-      return _generateExecutive(cv);
+      return _generateExecutive(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'nepal special' || nameNormalized == 'nepal-special') {
-      return _generateNepalSpecial(cv);
+      return _generateNepalSpecial(cv, isPro: isPro, qrUrl: qrUrl);
     } else {
-      return _generateClean(cv);
+      return _generateClean(cv, isPro: isPro, qrUrl: qrUrl);
     }
   }
 
@@ -50,7 +54,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 1: CLEAN (Default)
   // ==========================================
-  Future<Uint8List> _generateClean(CvModel cv) async {
+  Future<Uint8List> _generateClean(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -82,6 +86,13 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(36),
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(36),
+          isPro: isPro,
+          qrUrl: qrUrl,
+        ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Header
@@ -357,7 +368,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 2: PROFESSIONAL
   // ==========================================
-  Future<Uint8List> _generateProfessional(CvModel cv) async {
+  Future<Uint8List> _generateProfessional(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -388,7 +399,14 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0), // Full band header needs 0 margin at page level
+        margin: const pw.EdgeInsets.all(0),
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(0),
+          isPro: isPro,
+          qrUrl: qrUrl,
+        ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Header Band
@@ -644,7 +662,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 3: SIMPLE
   // ==========================================
-  Future<Uint8List> _generateSimple(CvModel cv) async {
+  Future<Uint8List> _generateSimple(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -675,7 +693,14 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(56), // 2cm margin is ~56pt
+        margin: const pw.EdgeInsets.all(56),
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(56),
+          isPro: isPro,
+          qrUrl: qrUrl,
+        ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Center Name
@@ -909,7 +934,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 4: BASIC
   // ==========================================
-  Future<Uint8List> _generateBasic(CvModel cv) async {
+  Future<Uint8List> _generateBasic(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -941,6 +966,13 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(56),
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(56),
+          isPro: isPro,
+          qrUrl: qrUrl,
+        ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Name left-aligned
@@ -1179,7 +1211,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 5: MODERN
   // ==========================================
-  Future<Uint8List> _generateModern(CvModel cv) async {
+  Future<Uint8List> _generateModern(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1205,8 +1237,11 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(0),
-        pageTheme: pw.PageTheme(
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(0),
+          isPro: isPro,
+          qrUrl: qrUrl,
           buildBackground: (pw.Context context) {
             // Draw left gray sidebar background
             return pw.FullPage(
@@ -1225,6 +1260,7 @@ class PdfService {
             );
           },
         ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             pw.Row(
@@ -1471,7 +1507,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 6: EUROPASS
   // ==========================================
-  Future<Uint8List> _generateEuropass(CvModel cv) async {
+  Future<Uint8List> _generateEuropass(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1496,7 +1532,14 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(42), // ~1.5cm margins
+        margin: const pw.EdgeInsets.all(42),
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(42),
+          isPro: isPro,
+          qrUrl: qrUrl,
+        ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Europass Header Band
@@ -1684,7 +1727,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 7: EXECUTIVE
   // ==========================================
-  Future<Uint8List> _generateExecutive(CvModel cv) async {
+  Future<Uint8List> _generateExecutive(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1720,8 +1763,11 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(56),
-        pageTheme: pw.PageTheme(
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(56),
+          isPro: isPro,
+          qrUrl: qrUrl,
           buildBackground: (pw.Context context) {
             // Off-white/cream page background
             return pw.FullPage(
@@ -1730,6 +1776,7 @@ class PdfService {
             );
           },
         ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             // Center Name
@@ -1953,7 +2000,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 8: NEPAL SPECIAL
   // ==========================================
-  Future<Uint8List> _generateNepalSpecial(CvModel cv) async {
+  Future<Uint8List> _generateNepalSpecial(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1978,8 +2025,11 @@ class PdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(42),
-        pageTheme: pw.PageTheme(
+        pageTheme: _buildPageTheme(
+          pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(42),
+          isPro: isPro,
+          qrUrl: qrUrl,
           buildBackground: (pw.Context context) {
             // Flag colors thin top and bottom border borders
             return pw.Stack(
@@ -2005,6 +2055,7 @@ class PdfService {
             );
           },
         ),
+        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
         build: (pw.Context context) {
           return [
             pw.SizedBox(height: 12),
@@ -2252,5 +2303,230 @@ class PdfService {
       items.add(pw.Text((skillsMap['languages'] as List).join(', '), style: const pw.TextStyle(fontSize: 9)));
     }
     return items;
+  }
+
+  String? _getQrUrl(CvModel cv) {
+    if (cv.shareUrl != null && cv.shareUrl!.isNotEmpty) {
+      return cv.shareUrl;
+    }
+    final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
+    final linkedin = personalInfo['linkedIn'] as String? ?? '';
+    if (linkedin.isNotEmpty) {
+      return linkedin;
+    }
+    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    if (portfolio.isNotEmpty) {
+      return portfolio;
+    }
+    return null;
+  }
+
+  QrCode _generateQrCode(String url) {
+    for (int version = 1; version <= 40; version++) {
+      try {
+        final qr = QrCode(version, QrErrorCorrectLevel.M);
+        qr.addData(url);
+        return qr;
+      } catch (e) {
+        if (version == 40) rethrow;
+      }
+    }
+    throw Exception('Data too large for QR Code');
+  }
+
+  pw.Widget _buildQrCode(String url) {
+    try {
+      final qrCode = _generateQrCode(url);
+      final qrImage = QrImage(qrCode);
+      final size = qrImage.moduleCount;
+
+      return pw.Container(
+        width: 51,
+        height: 60,
+        color: PdfColors.white,
+        padding: const pw.EdgeInsets.all(3),
+        child: pw.Column(
+          mainAxisSize: pw.MainAxisSize.min,
+          children: [
+            pw.SizedBox(
+              width: 45,
+              height: 45,
+              child: pw.CustomPaint(
+                painter: (PdfGraphics g, PdfPoint pointSize) {
+                  final cellW = pointSize.x / size;
+                  final cellH = pointSize.y / size;
+                  g.setFillColor(PdfColors.black);
+                  for (var r = 0; r < size; r++) {
+                    for (var c = 0; c < size; c++) {
+                      if (qrImage.isDark(r, c)) {
+                        g.drawRect(
+                          c * cellW,
+                          pointSize.y - (r + 1) * cellH,
+                          cellW + 0.05,
+                          cellH + 0.05,
+                        );
+                        g.fillPath();
+                      }
+                    }
+                  }
+                },
+              ),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(
+              'Scan to connect',
+              style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey600),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      return pw.SizedBox();
+    }
+  }
+
+  pw.PageTheme _buildPageTheme({
+    required PdfPageFormat pageFormat,
+    required pw.EdgeInsets margin,
+    required bool isPro,
+    required String? qrUrl,
+    pw.Widget Function(pw.Context)? buildBackground,
+  }) {
+    return pw.PageTheme(
+      pageFormat: pageFormat,
+      margin: margin,
+      buildBackground: buildBackground,
+    );
+  }
+
+  pw.Widget _buildQrFooter(pw.Context context, bool isPro, String? qrUrl) {
+    if (context.pageNumber == 1 && isPro && qrUrl != null) {
+      return pw.FullPage(
+        ignoreMargins: true,
+        child: pw.Stack(
+          children: [
+            pw.Positioned(
+              bottom: 14.17,
+              right: 14.17,
+              child: _buildQrCode(qrUrl),
+            ),
+          ],
+        ),
+      );
+    }
+    return pw.SizedBox();
+  }
+
+  Future<Uint8List> generateCoverLetterPdf(CvModel cv, String text, {String? targetCompany}) async {
+    final pdf = pw.Document();
+    final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
+    final name = personalInfo['fullName'] as String? ?? 'Applicant';
+    final email = personalInfo['email'] as String? ?? '';
+    final phone = personalInfo['phone'] as String? ?? '';
+    final location = personalInfo['location'] as String? ?? '';
+    final linkedin = personalInfo['linkedIn'] as String? ?? '';
+    final portfolio = personalInfo['portfolio'] as String? ?? '';
+
+    final templateLower = cv.template.toLowerCase().trim();
+    PdfColor primaryColor = PdfColor.fromHex('#1A1A2E');
+    if (templateLower == 'modern') {
+      primaryColor = PdfColor.fromHex('#6C63FF');
+    } else if (templateLower == 'europass') {
+      primaryColor = PdfColor.fromHex('#004494');
+    } else if (templateLower == 'executive') {
+      primaryColor = PdfColor.fromHex('#1B2A4A');
+    } else if (templateLower == 'nepal special' || templateLower == 'nepal-special') {
+      primaryColor = PdfColor.fromHex('#DC143C');
+    }
+
+    final formattedDate = DateFormat('MMMM dd, yyyy').format(DateTime.now());
+    final contactRow = [
+      if (email.isNotEmpty) email,
+      if (phone.isNotEmpty) phone,
+      if (location.isNotEmpty) location,
+    ].join(' | ');
+
+    final socialRow = [
+      if (linkedin.isNotEmpty) linkedin,
+      if (portfolio.isNotEmpty) portfolio,
+    ].join(' | ');
+
+    final paragraphs = text.split('\n').where((p) => p.trim().isNotEmpty).toList();
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(56),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Container(height: 4, color: primaryColor),
+              pw.SizedBox(height: 12),
+              pw.Text(
+                name,
+                style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(contactRow, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+              if (socialRow.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Text(socialRow, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+              ],
+              pw.SizedBox(height: 12),
+              pw.Divider(color: PdfColors.grey300, thickness: 1),
+              pw.SizedBox(height: 16),
+              pw.Align(
+                alignment: pw.Alignment.topRight,
+                child: pw.Text(
+                  formattedDate,
+                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.Text(
+                targetCompany != null && targetCompany.isNotEmpty
+                    ? 'Dear $targetCompany Team,'
+                    : 'Dear Hiring Manager,',
+                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.SizedBox(height: 16),
+              ...paragraphs.map((p) => pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 12),
+                  child: pw.Text(
+                    p,
+                    style: const pw.TextStyle(fontSize: 10),
+                  ),
+                  )),
+              pw.SizedBox(height: 20),
+              pw.Text('Sincerely,', style: const pw.TextStyle(fontSize: 10)),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                name,
+                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  Future<String> saveCoverLetterPdfToDevice(Uint8List bytes, String fullName) async {
+    final cleanName = fullName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final filename = '${cleanName}_CoverLetter_$timestamp.pdf';
+
+    final directory = await getApplicationDocumentsDirectory();
+    final path = '${directory.path}/$filename';
+    final file = File(path);
+    await file.writeAsBytes(bytes);
+    return path;
   }
 }

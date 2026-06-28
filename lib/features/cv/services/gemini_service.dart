@@ -224,6 +224,57 @@ class GeminiService {
     }
   }
 
+  Future<String> generateCoverLetter({
+    required CvModel cv,
+    String? jobDescription,
+    String? targetCompany,
+  }) async {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    try {
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 30),
+        minimumFetchInterval: const Duration(hours: 1),
+      ));
+      await remoteConfig.fetchAndActivate();
+    } catch (e) {
+      // Fallback
+    }
+
+    final apiKey = remoteConfig.getString('GEMINI_API_KEY');
+    if (apiKey.isEmpty) {
+      throw Exception('API Key not configured. Please contact the administrator.');
+    }
+
+    final model = GenerativeModel(
+      model: 'gemini-1.5-pro',
+      apiKey: apiKey,
+      systemInstruction: Content.system(
+        'You are an expert cover letter writer. Write a professional, personalized '
+        'cover letter based on the CV data provided. The letter must:\n'
+        '- Be 3-4 paragraphs, under 400 words\n'
+        '- Sound human, confident, and specific — not generic\n'
+        '- Opening: hook the reader with a strong opening line\n'
+        '- Middle: connect 2-3 specific achievements from CV to the role\n'
+        '- Closing: clear call to action, professional sign-off\n'
+        '- If a job description is provided, tailor every paragraph to it\n'
+        '- If a company name is provided, address it specifically\n'
+        'Return ONLY the cover letter text. No JSON. No explanation. Just the letter.'
+      ),
+    );
+
+    final cvJson = jsonEncode(cv.generatedContent);
+    final prompt = 'CV Data: $cvJson\n'
+        'Target Company: ${targetCompany ?? "Not specified"}\n'
+        'Job Description: ${jobDescription ?? "Not specified"}';
+
+    try {
+      final response = await model.generateContent([Content.text(prompt)]);
+      return response.text ?? '';
+    } catch (e) {
+      throw Exception('Cover letter generation failed: ${e.toString()}');
+    }
+  }
+
   String _cleanJsonString(String source) {
     var cleaned = source.trim();
     if (cleaned.startsWith('```')) {
@@ -239,4 +290,3 @@ class GeminiService {
     return cleaned;
   }
 }
-

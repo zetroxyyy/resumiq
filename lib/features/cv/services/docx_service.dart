@@ -85,7 +85,153 @@ class DocxService {
 
     final encoder = ZipEncoder();
     final bytes = encoder.encode(archive);
-    return Uint8List.fromList(bytes ?? []);
+    return Uint8List.fromList(bytes);
+  }
+
+  Uint8List generateCoverLetterDocx(CvModel cv, String text, {String? targetCompany}) {
+    final archive = Archive();
+
+    // 1. [Content_Types].xml
+    const contentTypesXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>''';
+    archive.addFile(ArchiveFile('[Content_Types].xml', contentTypesXml.length, contentTypesXml.codeUnits));
+
+    // 2. _rels/.rels
+    const relsXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>''';
+    archive.addFile(ArchiveFile('_rels/.rels', relsXml.length, relsXml.codeUnits));
+
+    // 3. word/_rels/document.xml.rels
+    const documentRelsXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>''';
+    archive.addFile(ArchiveFile('word/_rels/document.xml.rels', documentRelsXml.length, documentRelsXml.codeUnits));
+
+    // 4. word/styles.xml
+    const stylesXml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        <w:sz w:val="22"/>
+      </w:rPr>
+    </w:rPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:rPr>
+      <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+      <w:sz w:val="22"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:spacing w:before="240" w:after="120"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+      <w:b/>
+      <w:sz w:val="36"/>
+    </w:rPr>
+  </w:style>
+</w:styles>''';
+    archive.addFile(ArchiveFile('word/styles.xml', stylesXml.length, stylesXml.codeUnits));
+
+    // 5. word/document.xml
+    final documentXml = _buildCoverLetterXml(cv, text, targetCompany: targetCompany);
+    archive.addFile(ArchiveFile('word/document.xml', documentXml.length, documentXml.codeUnits));
+
+    final encoder = ZipEncoder();
+    final bytes = encoder.encode(archive);
+    return Uint8List.fromList(bytes);
+  }
+
+  String _buildCoverLetterXml(CvModel cv, String text, {String? targetCompany}) {
+    final buffer = StringBuffer();
+    buffer.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
+    buffer.write('<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">');
+    buffer.write('<w:body>');
+
+    final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
+    final name = personalInfo['fullName'] as String? ?? 'Applicant';
+    final email = personalInfo['email'] as String? ?? '';
+    final phone = personalInfo['phone'] as String? ?? '';
+    final location = personalInfo['location'] as String? ?? '';
+    final linkedin = personalInfo['linkedIn'] as String? ?? '';
+    final portfolio = personalInfo['portfolio'] as String? ?? '';
+
+    // Name (Heading 1)
+    buffer.write(_paragraph(name, style: 'Heading1'));
+
+    // Contact info (Normal style)
+    final contactParts = [
+      if (email.isNotEmpty) email,
+      if (phone.isNotEmpty) phone,
+      if (location.isNotEmpty) location,
+      if (linkedin.isNotEmpty) linkedin,
+      if (portfolio.isNotEmpty) portfolio,
+    ];
+    if (contactParts.isNotEmpty) {
+      buffer.write(_paragraph(contactParts.join(' | '), style: 'Normal'));
+    }
+
+    // Spacer
+    buffer.write(_spacer());
+
+    // Date
+    final now = DateTime.now();
+    final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    buffer.write('<w:p>'
+        '<w:pPr><w:jc w:val="right"/></w:pPr>'
+        '<w:r><w:t>${_escapeXml(dateStr)}</w:t></w:r>'
+        '</w:p>');
+
+    buffer.write(_spacer());
+
+    // Salutation
+    final salutation = targetCompany != null && targetCompany.isNotEmpty
+        ? 'Dear $targetCompany Team,'
+        : 'Dear Hiring Manager,';
+    buffer.write(_paragraph(salutation));
+    buffer.write(_spacer());
+
+    // Body paragraphs
+    final paragraphs = text.split('\n').where((p) => p.trim().isNotEmpty).toList();
+    for (final p in paragraphs) {
+      buffer.write(_paragraph(p));
+      buffer.write(_spacer());
+    }
+
+    buffer.write(_spacer());
+
+    // Closing
+    buffer.write(_paragraph('Sincerely,'));
+    buffer.write(_spacer());
+    buffer.write(_compositeParagraph([
+      _run(name, bold: true),
+    ]));
+
+    // Standard margins 2.54cm (1440 twips)
+    buffer.write('<w:sectPr>');
+    buffer.write('<w:pgSz w:w="11906" w:h="16838"/>');
+    buffer.write('<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>');
+    buffer.write('</w:sectPr>');
+
+    buffer.write('</w:body>');
+    buffer.write('</w:document>');
+    return buffer.toString();
   }
 
   String _buildDocumentXml(CvModel cv) {

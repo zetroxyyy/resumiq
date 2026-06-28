@@ -40,6 +40,8 @@ dependencies:
   pdf: ^3.11.3
   archive: ^4.0.2
   printing: ^5.14.2
+  qr_flutter: ^4.1.0
+  qr: ^3.0.2
 
   # File System
   path_provider: ^2.1.5
