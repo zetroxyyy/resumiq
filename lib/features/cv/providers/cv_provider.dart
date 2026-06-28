@@ -43,7 +43,7 @@ final cvGenerationProvider = StateNotifierProvider<CvGenerationNotifier, CvGener
 
 class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
   final Ref _ref;
-  final GeminiService _gemini = const GeminiService();
+  final GeminiService _gemini = GeminiService();
 
   CvGenerationNotifier(this._ref) : super(const CvGenerationState());
 
@@ -59,12 +59,38 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
     state = const CvGenerationState(isLoading: true);
 
     try {
-      final cvId = await _gemini.generateCv(
-        uid: user.uid,
+      // Generate CV content via REST API
+      final generatedContent = await _gemini.generateCv(
         rawInput: inputData.rawInput,
         cvType: inputData.format,
         jobDescription: inputData.jobDescription,
         atsOptimized: inputData.atsOptimized,
+      );
+
+      // Persist to Firestore
+      final cvRef = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('cvs')
+          .add({
+        'generatedContent': generatedContent,
+        'template': 'clean',
+        'cvType': inputData.format,
+        'atsOptimized': inputData.atsOptimized,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'version': 1,
+      });
+
+      final cvId = cvRef.id;
+
+      // Save as version 1
+      await saveVersion(
+        uid: user.uid,
+        cvId: cvId,
+        generatedContent: generatedContent,
+        template: 'clean',
+        changedBy: 'regenerated',
       );
 
       state = CvGenerationState(generatedCvId: cvId);

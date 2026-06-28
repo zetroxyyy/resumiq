@@ -1,319 +1,234 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
-import '../models/cv_model.dart';
 
 class GeminiService {
-  const GeminiService();
+  static const String _baseUrl =
+      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 
-  static String _apiKey = '';
+  String _apiKey = '';
 
-  Future<void> _initializeApiKey() async {
+  Future<void> _ensureApiKey() async {
+    if (_apiKey.isNotEmpty) return;
+
     try {
-      // Layer 1: Try Remote Config fetch
-      final remoteConfig = FirebaseRemoteConfig.instance;
-      await remoteConfig.setDefaults({
-        'GEMINI_API_KEY': '',
-      });
-      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+      final rc = FirebaseRemoteConfig.instance;
+      await rc.setConfigSettings(RemoteConfigSettings(
         fetchTimeout: const Duration(seconds: 15),
         minimumFetchInterval: const Duration(hours: 1),
       ));
-      await remoteConfig.fetchAndActivate();
-      final fetchedKey = remoteConfig.getString('GEMINI_API_KEY').trim();
-      
-      debugPrint('RemoteConfig fetch result: '
-        'key length=${fetchedKey.length}, '
-        'isEmpty=${fetchedKey.isEmpty}');
-      
-      if (fetchedKey.isNotEmpty) {
-        _apiKey = fetchedKey;
-        debugPrint('Gemini: key loaded from Remote Config');
+      await rc.fetchAndActivate();
+      final key = rc.getString('GEMINI_API_KEY').trim();
+      debugPrint('RC key loaded, length: ${key.length}');
+      if (key.isNotEmpty) {
+        _apiKey = key;
         return;
       }
     } catch (e) {
-      debugPrint('RemoteConfig fetch error: $e');
+      debugPrint('RC fetch error: $e');
     }
-    
-    // Layer 2: Try cached Remote Config value
+
+    // Try cached value
     try {
-      final cachedKey = FirebaseRemoteConfig.instance
-        .getString('GEMINI_API_KEY').trim();
-      if (cachedKey.isNotEmpty) {
-        _apiKey = cachedKey;
-        debugPrint('Gemini: key loaded from RC cache');
+      final cached =
+          FirebaseRemoteConfig.instance.getString('GEMINI_API_KEY').trim();
+      if (cached.isNotEmpty) {
+        _apiKey = cached;
+        debugPrint('RC cached key loaded, length: ${cached.length}');
         return;
       }
     } catch (e) {
-      debugPrint('RemoteConfig cache error: $e');
+      debugPrint('RC cache error: $e');
     }
-    
-    debugPrint('FATAL: Gemini API key could not be loaded from any source');
-    throw Exception('AI service is not configured. Please try again later.');
+
+    throw Exception('AI service unavailable. Please try again later.');
   }
 
-  Future<String> generateCv({
-    required String uid,
+  Future<Map<String, dynamic>> generateCv({
     required String rawInput,
     required String cvType,
     String? jobDescription,
     bool atsOptimized = false,
   }) async {
-    try {
-      if (_apiKey.isEmpty) {
-        await _initializeApiKey();
-      }
+    await _ensureApiKey();
 
-      debugPrint("Gemini: initializing with model gemini-1.5-flash");
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: _apiKey,
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-        ),
-        systemInstruction: Content.system(
-          'You are a world-class professional CV writer. Transform raw unstructured information into a perfectly structured, professional CV. '
-          'Think deeply. Extract all details. Use strong professional language. '
-          'Respond ONLY with valid JSON. Do NOT wrap it in markdown code fences like ```json. Do not write explanation. '
-          'Follow this JSON schema format exactly:\n'
-          '{\n'
-          '  "personalInfo": {"fullName": "", "email": "", "phone": "", "location": "", "linkedIn": "", "portfolio": ""},\n'
-          '  "summary": "",\n'
-          '  "workExperience": [{"company": "", "role": "", "startDate": "", "endDate": "", "current": false, "responsibilities": []}],\n'
-          '  "education": [{"institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "grade": []}],\n'
-          '  "skills": {"technical": [], "soft": [], "languages": []},\n'
-          '  "certifications": [{"name": "", "issuer": "", "date": "", "url": ""}],\n'
-          '  "projects": [{"name": "", "description": "", "tech": [], "url": ""}],\n'
-          '  "achievements": [],\n'
-          '  "references": "",\n'
-          '  "cvType": "",\n'
-          '  "score": 85,\n'
-          '  "scoreFeedback": []\n'
-          '}\n'
-          'Scoring criteria: completeness 40%, language impact 30%, structure 30%.'
-        ),
-      );
+    final atsNote = atsOptimized
+        ? 'IMPORTANT: This CV must be ATS-optimized. Use only plain text, standard section names, no special characters except hyphens and bullets. Set atsOptimized: true in output.'
+        : '';
 
-      final prompt = _buildPrompt(rawInput, cvType, jobDescription, atsOptimized: atsOptimized);
+    final prompt = '''
+You are a world-class professional CV writer. Transform this raw information into a perfectly structured, professional CV. Think deeply. Extract all details. Use strong professional language.
+$atsNote
 
-      try {
-        debugPrint("Gemini: sending request...");
-        final result = await _callGeminiWithRetry(
-          model,
-          prompt,
-          uid,
-          rawInput,
-          cvType,
-          jobDescription,
-          atsOptimized: atsOptimized,
-        );
-        debugPrint("Gemini: response received");
-        return result;
-      } catch (e) {
-        debugPrint("Gemini: request failed: $e");
-        rethrow;
-      }
-    } catch (e) {
-      debugPrint("generateCv error: $e");
-      rethrow;
+CV Type requested: $cvType
+${jobDescription != null && jobDescription.isNotEmpty ? 'Job Description (tailor CV for this): $jobDescription' : ''}
+
+Raw Information:
+$rawInput
+
+Respond ONLY with valid JSON, no markdown, no explanation, no code fences. Use this exact structure:
+{
+  "personalInfo": {"fullName": "", "email": "", "phone": "", "location": "", "linkedIn": "", "portfolio": ""},
+  "summary": "",
+  "workExperience": [{"company": "", "role": "", "startDate": "", "endDate": "", "current": false, "responsibilities": []}],
+  "education": [{"institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "grade": ""}],
+  "skills": {"technical": [], "soft": [], "languages": []},
+  "certifications": [{"name": "", "issuer": "", "date": "", "url": ""}],
+  "projects": [{"name": "", "description": "", "tech": [], "url": ""}],
+  "achievements": [],
+  "references": "Available upon request",
+  "cvType": "$cvType",
+  "atsOptimized": ${atsOptimized.toString()},
+  "score": 0,
+  "scoreFeedback": []
+}
+Score 0-100: completeness 40%, language impact 30%, structure 30%.
+scoreFeedback: 2-3 specific improvement suggestions as strings.
+''';
+
+    debugPrint('Gemini: sending request to REST API...');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl?key=$_apiKey'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt}
+            ]
+          }
+        ],
+        'generationConfig': {
+          'temperature': 0.7,
+          'maxOutputTokens': 8192,
+        }
+      }),
+    ).timeout(const Duration(seconds: 60));
+
+    debugPrint('Gemini: response status ${response.statusCode}');
+
+    if (response.statusCode != 200) {
+      debugPrint('Gemini error body: ${response.body}');
+      throw Exception(
+          'AI generation failed (${response.statusCode}). Please try again.');
     }
-  }
 
-  String _buildPrompt(String rawInput, String cvType, String? jobDescription, {bool atsOptimized = false}) {
-    final basePrompt = 'Raw Input Details:\n$rawInput\n\n'
-        'Requested Format/Style: $cvType\n\n'
-        '${jobDescription != null ? 'Target Job Description to optimize for:\n$jobDescription\n\n' : ''}'
-        'Please parse all data, write professional summary, format experience items, list skills, score the CV out of 100, and give 2-3 feedback items.';
-    if (atsOptimized) {
-      return '$basePrompt\n\n'
-          'IMPORTANT: This CV must be ATS-optimized. In the generatedContent, '
-          'set a field \'atsOptimized: true\'. The content must use only plain text, '
-          'standard section names (Work Experience, Education, Skills), '
-          'and no special characters except hyphens and bullets.';
-    }
-    return basePrompt;
-  }
+    final responseData = jsonDecode(response.body);
+    String text = responseData['candidates'][0]['content']['parts'][0]['text']
+        as String;
 
-  Future<String> _callGeminiWithRetry(
-    GenerativeModel model,
-    String prompt,
-    String uid,
-    String rawInput,
-    String cvType,
-    String? jobDescription, {
-    bool atsOptimized = false,
-    bool isRetry = false,
-  }) async {
-    final response = await model.generateContent([Content.text(prompt)]);
-    var responseText = response.text ?? '';
+    debugPrint('Gemini: raw response length ${text.length}');
 
-    // Strip markdown JSON wrappers if Gemini ignored system instruction
-    responseText = _cleanJsonString(responseText);
+    // Strip markdown code fences if present
+    text = text
+        .replaceAll(RegExp(r'```json\s*'), '')
+        .replaceAll(RegExp(r'```\s*'), '')
+        .trim();
 
     try {
-      final parsedJson = jsonDecode(responseText) as Map<String, dynamic>;
-
-      // Save CvModel to Firestore
-      final cvCollection = FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('cvs');
-      final cvDocRef = cvCollection.doc();
-      final cvId = cvDocRef.id;
-
-      final now = DateTime.now();
-
-      final cvModel = CvModel(
-        id: cvId,
-        userId: uid,
-        title: parsedJson['personalInfo']?['fullName'] != null &&
-                (parsedJson['personalInfo']?['fullName'] as String).isNotEmpty
-            ? '${parsedJson['personalInfo']?['fullName']} - CV'
-            : 'Gemini Professional CV',
-        rawInput: rawInput,
-        jobDescription: jobDescription,
-        generatedContent: parsedJson,
-        template: cvType,
-        pdfUrl: null,
-        docxUrl: null,
-        shareUrl: null,
-        score: parsedJson['score'] as int?,
-        scoreFeedback: List<String>.from(parsedJson['scoreFeedback'] as List? ?? []),
-        version: 1,
-        cvType: cvType,
-        atsOptimized: atsOptimized || (parsedJson['atsOptimized'] == true),
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      // Save CV document
-      await cvDocRef.set(cvModel.toJson());
-
-      // Save initial version snapshot (version 1 = "First generated")
-      await cvDocRef.collection('versions').add({
-        'versionNumber': 1,
-        'generatedContent': parsedJson,
-        'template': cvType,
-        'changedBy': 'initial',
-        'changedAt': Timestamp.now(),
-      });
-
-      // Increment generations count in User Profile
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .update({'generationsThisMonth': FieldValue.increment(1)});
-
-      return cvId;
+      return jsonDecode(text) as Map<String, dynamic>;
     } catch (e) {
-      if (!isRetry) {
-        // Retry once with a stricter instruction
-        final strictPrompt = '$prompt\n\nIMPORTANT: return ONLY raw JSON, no backticks, no markdown code block fences.';
-        return await _callGeminiWithRetry(
-          model,
-          strictPrompt,
-          uid,
-          rawInput,
-          cvType,
-          jobDescription,
-          atsOptimized: atsOptimized,
-          isRetry: true,
-        );
+      debugPrint('JSON parse error: $e');
+      // Try to extract JSON from response
+      final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(text);
+      if (jsonMatch != null) {
+        return jsonDecode(jsonMatch.group(0)!) as Map<String, dynamic>;
       }
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> editCv({
-    required Map<String, dynamic> currentCvJson,
-    required String transcribedText,
-  }) async {
-    if (_apiKey.isEmpty) {
-      await _initializeApiKey();
-    }
-
-    // 2. Instantiate Gemini 1.5 Pro model
-    final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-      ),
-      systemInstruction: Content.system(
-        'You are a world-class professional CV editor. '
-        'The user wants to make a change to their CV. Apply ONLY the requested change '
-        'and return the complete updated CV JSON. Do not change anything else. '
-        'Ensure the output is valid JSON matching the current CV schema structure. '
-        'Do not wrap the response in markdown code blocks like ```json. Do not include any explanations.'
-      ),
-    );
-
-    final prompt = 'Change requested: $transcribedText\n'
-        'Current CV data: ${jsonEncode(currentCvJson)}';
-
-    try {
-      final response = await model.generateContent([Content.text(prompt)]);
-      var responseText = response.text ?? '';
-      responseText = _cleanJsonString(responseText);
-      return jsonDecode(responseText) as Map<String, dynamic>;
-    } catch (e) {
-      throw Exception('Voice edit failed: ${e.toString().replaceAll('Exception:', '').trim()}');
+      throw Exception('AI returned invalid response. Please try again.');
     }
   }
 
   Future<String> generateCoverLetter({
-    required CvModel cv,
+    required Map<String, dynamic> cvData,
     String? jobDescription,
     String? targetCompany,
   }) async {
-    if (_apiKey.isEmpty) {
-      await _initializeApiKey();
+    await _ensureApiKey();
+
+    final prompt = '''
+You are an expert cover letter writer. Write a professional, personalized cover letter.
+The letter must be 3-4 paragraphs, under 400 words, sound human and confident.
+Opening: strong hook. Middle: 2-3 specific achievements from CV. Closing: clear call to action.
+${jobDescription != null ? 'Tailor to this job: $jobDescription' : ''}
+${targetCompany != null ? 'Address to: $targetCompany' : ''}
+
+CV Data: ${jsonEncode(cvData)}
+
+Return ONLY the cover letter text. No JSON. No explanation.
+''';
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl?key=$_apiKey'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt}
+            ]
+          }
+        ],
+        'generationConfig': {'temperature': 0.8, 'maxOutputTokens': 2048}
+      }),
+    ).timeout(const Duration(seconds: 45));
+
+    if (response.statusCode != 200) {
+      throw Exception('Cover letter generation failed. Please try again.');
     }
 
-    final model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      systemInstruction: Content.system(
-        'You are an expert cover letter writer. Write a professional, personalized '
-        'cover letter based on the CV data provided. The letter must:\n'
-        '- Be 3-4 paragraphs, under 400 words\n'
-        '- Sound human, confident, and specific — not generic\n'
-        '- Opening: hook the reader with a strong opening line\n'
-        '- Middle: connect 2-3 specific achievements from CV to the role\n'
-        '- Closing: clear call to action, professional sign-off\n'
-        '- If a job description is provided, tailor every paragraph to it\n'
-        '- If a company name is provided, address it specifically\n'
-        'Return ONLY the cover letter text. No JSON. No explanation. Just the letter.'
-      ),
-    );
-
-    final cvJson = jsonEncode(cv.generatedContent);
-    final prompt = 'CV Data: $cvJson\n'
-        'Target Company: ${targetCompany ?? "Not specified"}\n'
-        'Job Description: ${jobDescription ?? "Not specified"}';
-
-    try {
-      final response = await model.generateContent([Content.text(prompt)]);
-      return response.text ?? '';
-    } catch (e) {
-      throw Exception('Cover letter generation failed: ${e.toString()}');
-    }
+    final data = jsonDecode(response.body);
+    return data['candidates'][0]['content']['parts'][0]['text'] as String;
   }
 
-  String _cleanJsonString(String source) {
-    var cleaned = source.trim();
-    if (cleaned.startsWith('```')) {
-      // Remove starting ```json or ```
-      final firstLineEnd = cleaned.indexOf('\n');
-      if (firstLineEnd != -1) {
-        cleaned = cleaned.substring(firstLineEnd).trim();
-      }
+  Future<Map<String, dynamic>> editCv({
+    required Map<String, dynamic> currentCvData,
+    required String editInstruction,
+  }) async {
+    await _ensureApiKey();
+
+    final prompt = '''
+Apply ONLY the requested change to this CV and return the complete updated CV JSON.
+Do not change anything else.
+Change requested: $editInstruction
+Current CV data: ${jsonEncode(currentCvData)}
+Return ONLY valid JSON with the same structure. No markdown, no explanation.
+''';
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl?key=$_apiKey'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {'text': prompt}
+            ]
+          }
+        ],
+        'generationConfig': {'temperature': 0.3, 'maxOutputTokens': 8192}
+      }),
+    ).timeout(const Duration(seconds: 60));
+
+    if (response.statusCode != 200) {
+      throw Exception('CV edit failed. Please try again.');
     }
-    if (cleaned.endsWith('```')) {
-      cleaned = cleaned.substring(0, cleaned.length - 3).trim();
+
+    final data = jsonDecode(response.body);
+    String text =
+        data['candidates'][0]['content']['parts'][0]['text'] as String;
+    text = text
+        .replaceAll(RegExp(r'```json\s*'), '')
+        .replaceAll(RegExp(r'```\s*'), '')
+        .trim();
+
+    try {
+      return jsonDecode(text) as Map<String, dynamic>;
+    } catch (e) {
+      final match = RegExp(r'\{[\s\S]*\}').firstMatch(text);
+      if (match != null) return jsonDecode(match.group(0)!) as Map<String, dynamic>;
+      throw Exception('Edit failed. Please try again.');
     }
-    return cleaned;
   }
 }

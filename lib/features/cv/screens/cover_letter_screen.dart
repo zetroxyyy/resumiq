@@ -38,7 +38,7 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
   final _jobDescController = TextEditingController();
   late TextEditingController _coverLetterTextController;
 
-  final GeminiService _gemini = const GeminiService();
+  final GeminiService _gemini = GeminiService();
   final PdfService _pdfService = const PdfService();
   final DocxService _docxService = const DocxService();
   final CloudinaryService _cloudinary = CloudinaryService();
@@ -141,7 +141,7 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
 
     try {
       final letter = await _gemini.generateCoverLetter(
-        cv: cv,
+        cvData: cv.generatedContent,
         jobDescription: _jobDescController.text.trim().isNotEmpty ? _jobDescController.text.trim() : null,
         targetCompany: _companyController.text.trim().isNotEmpty ? _companyController.text.trim() : null,
       );
