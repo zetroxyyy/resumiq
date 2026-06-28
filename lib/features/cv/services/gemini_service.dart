@@ -12,6 +12,7 @@ class GeminiService {
     required String rawInput,
     required String cvType,
     String? jobDescription,
+    bool atsOptimized = false,
   }) async {
     // 1. Fetch API Key from Firebase Remote Config with 1-hour cache expiry
     final remoteConfig = FirebaseRemoteConfig.instance;
@@ -60,20 +61,36 @@ class GeminiService {
       ),
     );
 
-    final prompt = _buildPrompt(rawInput, cvType, jobDescription);
+    final prompt = _buildPrompt(rawInput, cvType, jobDescription, atsOptimized: atsOptimized);
 
     try {
-      return await _callGeminiWithRetry(model, prompt, uid, rawInput, cvType, jobDescription);
+      return await _callGeminiWithRetry(
+        model,
+        prompt,
+        uid,
+        rawInput,
+        cvType,
+        jobDescription,
+        atsOptimized: atsOptimized,
+      );
     } catch (e) {
       throw Exception('AI generation failed. Please try again.');
     }
   }
 
-  String _buildPrompt(String rawInput, String cvType, String? jobDescription) {
-    return 'Raw Input Details:\n$rawInput\n\n'
+  String _buildPrompt(String rawInput, String cvType, String? jobDescription, {bool atsOptimized = false}) {
+    final basePrompt = 'Raw Input Details:\n$rawInput\n\n'
         'Requested Format/Style: $cvType\n\n'
         '${jobDescription != null ? 'Target Job Description to optimize for:\n$jobDescription\n\n' : ''}'
         'Please parse all data, write professional summary, format experience items, list skills, score the CV out of 100, and give 2-3 feedback items.';
+    if (atsOptimized) {
+      return '$basePrompt\n\n'
+          'IMPORTANT: This CV must be ATS-optimized. In the generatedContent, '
+          'set a field \'atsOptimized: true\'. The content must use only plain text, '
+          'standard section names (Work Experience, Education, Skills), '
+          'and no special characters except hyphens and bullets.';
+    }
+    return basePrompt;
   }
 
   Future<String> _callGeminiWithRetry(
@@ -83,6 +100,7 @@ class GeminiService {
     String rawInput,
     String cvType,
     String? jobDescription, {
+    bool atsOptimized = false,
     bool isRetry = false,
   }) async {
     final response = await model.generateContent([Content.text(prompt)]);
@@ -116,11 +134,13 @@ class GeminiService {
         generatedContent: parsedJson,
         template: cvType,
         pdfUrl: null,
+        docxUrl: null,
         shareUrl: null,
         score: parsedJson['score'] as int?,
         scoreFeedback: List<String>.from(parsedJson['scoreFeedback'] as List? ?? []),
         version: 1,
         cvType: cvType,
+        atsOptimized: atsOptimized || (parsedJson['atsOptimized'] == true),
         createdAt: now,
         updatedAt: now,
       );
@@ -146,6 +166,7 @@ class GeminiService {
           rawInput,
           cvType,
           jobDescription,
+          atsOptimized: atsOptimized,
           isRetry: true,
         );
       }

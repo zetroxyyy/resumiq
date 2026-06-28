@@ -9,6 +9,10 @@ class PdfService {
   const PdfService();
 
   Future<Uint8List> generatePdf(CvModel cv, String templateName) async {
+    if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true) {
+      return _generateSimple(cv);
+    }
+
     final nameNormalized = templateName.toLowerCase().trim();
 
     if (nameNormalized == 'professional') {

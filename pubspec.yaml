@@ -38,6 +38,7 @@ dependencies:
 
   # PDF Generation
   pdf: ^3.11.3
+  archive: ^4.0.2
   printing: ^5.14.2
 
   # File System

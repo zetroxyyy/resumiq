@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/loading_overlay.dart';
@@ -16,6 +18,7 @@ import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
+import '../services/docx_service.dart';
 import '../services/gemini_service.dart';
 
 class PreviewScreen extends ConsumerStatefulWidget {
@@ -34,8 +37,10 @@ class PreviewScreen extends ConsumerStatefulWidget {
 
 class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   final PdfService _pdfService = const PdfService();
+  final DocxService _docxService = const DocxService();
   final CloudinaryService _cloudinary = CloudinaryService();
   bool _isDownloading = false;
+  bool _isDocxLoading = false;
   bool _isAiSuggestionsExpanded = false;
 
   void _showRenameDialog(String currentTitle, String userId) {
@@ -120,6 +125,108 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         setState(() => _isDownloading = false);
       }
     }
+  }
+
+  Future<void> _handleDocxExport(CvModel cv, String userId) async {
+    setState(() => _isDocxLoading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final docxBytes = _docxService.generateDocx(cv);
+      final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
+      final cleanName = fullName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final filename = '${cleanName}_CV_$timestamp.docx';
+      
+      final directory = await getTemporaryDirectory();
+      final filePath = '${directory.path}/$filename';
+      final file = File(filePath);
+      await file.writeAsBytes(docxBytes);
+      
+      final docxUrl = await _cloudinary.uploadDocx(filePath: filePath, userId: userId);
+      
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('cvs')
+          .doc(cv.id)
+          .update({'docxUrl': docxUrl});
+      
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Word document saved and uploaded!'),
+            action: SnackBarAction(
+              label: 'Share',
+              onPressed: () {
+                Share.shareXFiles([XFile(filePath)], text: '$fullName Resume (DOCX)');
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Failed to export Word document: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDocxLoading = false);
+      }
+    }
+  }
+
+  void _showUpgradePrompt(String feature) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Pro Feature Needed',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, DOCX export, and unlimited generations.",
+                  style: const TextStyle(color: Colors.white70, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                CustomButton(
+                  text: 'Upgrade to Pro',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/upgrade');
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -243,51 +350,97 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                       ),
                     ],
 
+                    // ATS Banner above action bar when atsOptimized is true
+                    if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true)
+                      Container(
+                        color: theme.colorScheme.secondary.withOpacity(0.9),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.bolt, color: Colors.black, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              '⚡ ATS Mode — formatted for applicant tracking systems',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                     // Action panel
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                       color: Colors.black45,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Download
-                          _buildBottomAction(
-                            icon: Icons.download,
-                            label: 'Download',
-                            isLoading: _isDownloading,
-                            onTap: () => _handleDownloadAndUpload(cv, user.uid),
+                          // Left side action buttons
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildBottomAction(
+                                icon: Icons.picture_as_pdf,
+                                label: 'PDF',
+                                isLoading: _isDownloading,
+                                onTap: () => _handleDownloadAndUpload(cv, user.uid),
+                              ),
+                              _buildBottomActionWithProBadge(
+                                icon: Icons.description,
+                                label: 'Word',
+                                isLoading: _isDocxLoading,
+                                isProOnly: true,
+                                isUserPro: user.isPro,
+                                onTap: () {
+                                  if (user.isPro) {
+                                    _handleDocxExport(cv, user.uid);
+                                  } else {
+                                    _showUpgradePrompt('Word DOCX Export');
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          // Edit
-                          _buildBottomAction(
-                            icon: Icons.edit_note,
-                            label: 'Edit',
-                            onTap: () => _showEditBottomSheet(cv, user.uid),
+                          // Right side action buttons
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildBottomAction(
+                                icon: Icons.mic,
+                                label: 'Voice Edit',
+                                onTap: () => _showVoiceEditBottomSheet(cv, user.uid),
+                              ),
+                              _buildBottomAction(
+                                icon: Icons.edit_note,
+                                label: 'Edit',
+                                onTap: () => _showEditBottomSheet(cv, user.uid),
+                              ),
+                              _buildBottomActionWithProBadge(
+                                icon: Icons.share,
+                                label: 'Share',
+                                isProOnly: true,
+                                isUserPro: user.isPro,
+                                onTap: () {
+                                  if (user.isPro) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Sharing enabled for PRO members!')),
+                                    );
+                                  } else {
+                                    _showUpgradePrompt('Resume Link Sharing');
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          // Pro sharing placeholder
-                          if (user.isPro)
-                            _buildBottomAction(
-                              icon: Icons.share,
-                              label: 'Share',
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Sharing enabled for PRO members!')),
-                                );
-                              },
-                            ),
                         ],
                       ),
                     ),
                   ],
-                ),
-                Positioned(
-                  right: 20,
-                  bottom: 96,
-                  child: FloatingActionButton(
-                    backgroundColor: theme.colorScheme.secondary,
-                    foregroundColor: Colors.black,
-                    onPressed: () => _showVoiceEditBottomSheet(cv, user.uid),
-                    child: const Icon(Icons.mic),
-                  ),
                 ),
               ],
             ),
@@ -309,13 +462,65 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             isLoading
                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 : Icon(icon, size: 28, color: Colors.white),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomActionWithProBadge({
+    required IconData icon,
+    required String label,
+    bool isLoading = false,
+    required bool isProOnly,
+    required bool isUserPro,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                isLoading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Icon(icon, size: 28, color: Colors.white),
+                if (isProOnly && !isUserPro)
+                  Positioned(
+                    top: -4,
+                    right: -8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.amber,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'PRO',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 7,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
           ],

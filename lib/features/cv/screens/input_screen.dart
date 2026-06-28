@@ -25,6 +25,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   bool _isJobExpanded = false;
   String _selectedFormat = 'Standard';
   String? _inlineError;
+  bool _atsOptimized = false;
 
   final List<String> _formats = [
     'Standard',
@@ -234,6 +235,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
       jobDescription: _isJobExpanded && _jobController.text.trim().isNotEmpty
           ? _jobController.text.trim()
           : null,
+      atsOptimized: _atsOptimized,
     );
 
     context.go('/cv/generating');
@@ -288,9 +290,59 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     );
   }
 
+  void _showUpgradePrompt(String feature) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Pro Feature Needed',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, DOCX export, and unlimited generations.",
+                  style: const TextStyle(color: Colors.white70, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                CustomButton(
+                  text: 'Upgrade to Pro',
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/upgrade');
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final user = ref.watch(authProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -584,7 +636,60 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 48),
+                // Section: ATS Optimization
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Text(
+                      'Optimize for ATS',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, size: 20, color: Colors.white60),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('What is ATS?'),
+                            content: const Text(
+                              'Most companies use software to filter CVs before a human reads them.\n\n'
+                              'Enabling this creates a plain-text version of your CV that passes '
+                              'these filters — no columns, tables, or graphics.'
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Got it'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const Spacer(),
+                    Switch(
+                      value: _atsOptimized,
+                      activeColor: theme.colorScheme.primary,
+                      onChanged: (value) {
+                        final isPro = user?.isPro ?? false;
+                        if (!isPro) {
+                          _showUpgradePrompt('Optimize for ATS');
+                        } else {
+                          setState(() {
+                            _atsOptimized = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
                 CustomButton(
                   text: 'Generate CV',
                   onPressed: _validateAndSubmit,
