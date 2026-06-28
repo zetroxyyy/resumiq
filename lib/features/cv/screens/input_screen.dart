@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/gradient_background.dart';
+import '../../../core/widgets/pulsing_mic_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/cv_provider.dart';
 
@@ -34,10 +37,170 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     'Nepal-South Korea',
   ];
 
+  final SpeechToText _speech = SpeechToText();
+  bool _speechInitialized = false;
+  bool _isListeningInfo = false;
+  bool _isListeningJob = false;
+  bool _isNepali = false;
+  bool _hasMicPermission = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final status = await Permission.microphone.status;
+    if (mounted) {
+      setState(() {
+        _hasMicPermission = status.isGranted;
+      });
+    }
+  }
+
+  Future<void> _requestPermission() async {
+    final status = await Permission.microphone.request();
+    if (mounted) {
+      setState(() {
+        _hasMicPermission = status.isGranted;
+      });
+    }
+  }
+
+  Future<void> _handleMicAction(VoidCallback onGranted) async {
+    final status = await Permission.microphone.status;
+    if (status.isGranted) {
+      onGranted();
+    } else {
+      final newStatus = await Permission.microphone.request();
+      if (mounted) {
+        setState(() {
+          _hasMicPermission = newStatus.isGranted;
+        });
+      }
+      if (newStatus.isGranted) {
+        onGranted();
+      } else {
+        _showPermissionExplanationDialog();
+      }
+    }
+  }
+
+  void _showPermissionExplanationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Microphone Permission Required'),
+          content: const Text(
+            'Resumind needs access to your microphone to enable voice typing. Please enable it in the app settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _initSpeech() async {
+    if (_speechInitialized) return true;
+    final init = await _speech.initialize(
+      onError: (val) {
+        debugPrint('Speech error: $val');
+        _handleSpeechStop();
+      },
+      onStatus: (status) {
+        debugPrint('Speech status: $status');
+        if (status == 'done' || status == 'notListening') {
+          _handleSpeechStop();
+        }
+      },
+    );
+    if (mounted) {
+      setState(() {
+        _speechInitialized = init;
+      });
+    }
+    return init;
+  }
+
+  void _handleSpeechStop() {
+    if (mounted) {
+      setState(() {
+        _isListeningInfo = false;
+        _isListeningJob = false;
+      });
+    }
+  }
+
+  Future<void> _startListening({
+    required TextEditingController controller,
+    required bool isNepali,
+    required VoidCallback onStop,
+  }) async {
+    final init = await _initSpeech();
+    if (!init) return;
+
+    String localeId = isNepali ? 'ne_NP' : 'en_US';
+    if (isNepali) {
+      final locales = await _speech.locales();
+      final hasNepali = locales.any((l) =>
+          l.localeId.replaceAll('_', '-').toLowerCase() == 'ne-np' ||
+          l.localeId.split('_').first == 'ne');
+      if (!hasNepali) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nepali voice not supported on this device, using English'),
+            ),
+          );
+        }
+        localeId = 'en_US';
+      }
+    }
+
+    final baseText = controller.text.trim();
+
+    await _speech.listen(
+      localeId: localeId,
+      onResult: (result) {
+        if (mounted) {
+          setState(() {
+            final words = result.recognizedWords;
+            if (words.isNotEmpty) {
+              controller.text = baseText.isEmpty ? words : '$baseText $words';
+              controller.selection = TextSelection.fromPosition(
+                TextPosition(offset: controller.text.length),
+              );
+            }
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _stopListening({required VoidCallback onStop}) async {
+    await _speech.stop();
+    onStop();
+  }
+
   @override
   void dispose() {
     _infoController.dispose();
     _jobController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -145,6 +308,42 @@ class _InputScreenState extends ConsumerState<InputScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Part 4: Permission Card
+                if (!_hasMicPermission) ...[
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    color: theme.colorScheme.primary.withOpacity(0.1),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          const Text('🎤', style: TextStyle(fontSize: 24)),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Enable voice input to speak your CV in English or Nepali',
+                              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.colorScheme.primary,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: _requestPermission,
+                            child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+
                 // Section: Your Information
                 Text(
                   'Your Information',
@@ -160,6 +359,70 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Part 1: Language selection and Voice Button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: const Text('EN'),
+                          selected: !_isNepali,
+                          onSelected: (selected) {
+                            if (selected) setState(() => _isNepali = false);
+                          },
+                          selectedColor: theme.colorScheme.primary,
+                          labelStyle: TextStyle(
+                            color: !_isNepali ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('नेपाली'),
+                          selected: _isNepali,
+                          onSelected: (selected) {
+                            if (selected) setState(() => _isNepali = true);
+                          },
+                          selectedColor: theme.colorScheme.primary,
+                          labelStyle: TextStyle(
+                            color: _isNepali ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        if (_isListeningInfo)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8.0),
+                            child: ListeningLabel(),
+                          ),
+                        PulsingMicButton(
+                          isListening: _isListeningInfo,
+                          onTap: () {
+                            _handleMicAction(() {
+                              if (_isListeningInfo) {
+                                _stopListening(onStop: () => setState(() => _isListeningInfo = false));
+                              } else {
+                                setState(() => _isListeningInfo = true);
+                                _startListening(
+                                  controller: _infoController,
+                                  isNepali: _isNepali,
+                                  onStop: () => setState(() => _isListeningInfo = false),
+                                );
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
                 Stack(
                   children: [
                     TextFormField(
@@ -233,12 +496,44 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: CustomTextField(
-                          controller: _jobController,
-                          labelText: 'Job Description or URL',
-                          hintText: 'Paste target requirements or job detail here...',
-                          prefixIcon: Icons.description_outlined,
-                          maxLines: 5,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _jobController,
+                                labelText: 'Job Description or URL',
+                                hintText: 'Paste target requirements or job detail here...',
+                                prefixIcon: Icons.description_outlined,
+                                maxLines: 5,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Column(
+                              children: [
+                                if (_isListeningJob)
+                                  const ListeningLabel(),
+                                const SizedBox(height: 8),
+                                PulsingMicButton(
+                                  isListening: _isListeningJob,
+                                  onTap: () {
+                                    _handleMicAction(() {
+                                      if (_isListeningJob) {
+                                        _stopListening(onStop: () => setState(() => _isListeningJob = false));
+                                      } else {
+                                        setState(() => _isListeningJob = true);
+                                        _startListening(
+                                          controller: _jobController,
+                                          isNepali: false,
+                                          onStop: () => setState(() => _isListeningJob = false),
+                                        );
+                                      }
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],

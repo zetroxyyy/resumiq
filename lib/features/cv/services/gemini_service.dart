@@ -153,6 +153,56 @@ class GeminiService {
     }
   }
 
+  Future<Map<String, dynamic>> editCv({
+    required Map<String, dynamic> currentCvJson,
+    required String transcribedText,
+  }) async {
+    // 1. Fetch API Key from Firebase Remote Config with 1-hour cache expiry
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    try {
+      await remoteConfig.setConfigSettings(RemoteConfigSettings(
+        fetchTimeout: const Duration(seconds: 30),
+        minimumFetchInterval: const Duration(hours: 1),
+      ));
+      await remoteConfig.fetchAndActivate();
+    } catch (e) {
+      // Fallback/log config fetch issue
+    }
+
+    final apiKey = remoteConfig.getString('GEMINI_API_KEY');
+    if (apiKey.isEmpty) {
+      throw Exception('API Key not configured. Please contact the administrator.');
+    }
+
+    // 2. Instantiate Gemini 1.5 Pro model
+    final model = GenerativeModel(
+      model: 'gemini-1.5-pro',
+      apiKey: apiKey,
+      generationConfig: GenerationConfig(
+        responseMimeType: 'application/json',
+      ),
+      systemInstruction: Content.system(
+        'You are a world-class professional CV editor. '
+        'The user wants to make a change to their CV. Apply ONLY the requested change '
+        'and return the complete updated CV JSON. Do not change anything else. '
+        'Ensure the output is valid JSON matching the current CV schema structure. '
+        'Do not wrap the response in markdown code blocks like ```json. Do not include any explanations.'
+      ),
+    );
+
+    final prompt = 'Change requested: $transcribedText\n'
+        'Current CV data: ${jsonEncode(currentCvJson)}';
+
+    try {
+      final response = await model.generateContent([Content.text(prompt)]);
+      var responseText = response.text ?? '';
+      responseText = _cleanJsonString(responseText);
+      return jsonDecode(responseText) as Map<String, dynamic>;
+    } catch (e) {
+      throw Exception('Voice edit failed: ${e.toString().replaceAll('Exception:', '').trim()}');
+    }
+  }
+
   String _cleanJsonString(String source) {
     var cleaned = source.trim();
     if (cleaned.startsWith('```')) {
@@ -168,3 +218,4 @@ class GeminiService {
     return cleaned;
   }
 }
+

@@ -1,15 +1,22 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
+import '../../../core/widgets/loading_overlay.dart';
+import '../../../core/widgets/pulsing_mic_button.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
+import '../services/gemini_service.dart';
 
 class PreviewScreen extends ConsumerStatefulWidget {
   final String cvId;
@@ -127,6 +134,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         if (cv == null) {
           return const Scaffold(body: Center(child: Text('CV not found.')));
         }
+        final theme = Theme.of(context);
 
         final score = cv.score ?? 0;
         final scoreColor = score >= 80
@@ -172,97 +180,111 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
             ],
           ),
           body: GradientBackground(
-            child: Column(
+            child: Stack(
               children: [
-                Expanded(
-                  child: PdfPreview(
-                    build: (format) => _pdfService.generatePdf(cv, cv.template),
-                    useActions: false,
-                    canChangePageFormat: false,
-                    loadingWidget: const Center(child: CircularProgressIndicator()),
-                  ),
-                ),
-
-                // Collapsible AI suggestions suggestions
-                if (cv.scoreFeedback.isNotEmpty) ...[
-                  Card(
-                    margin: const EdgeInsets.all(12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    child: ExpansionTile(
-                      initiallyExpanded: _isAiSuggestionsExpanded,
-                      onExpansionChanged: (expanded) {
-                        setState(() {
-                          _isAiSuggestionsExpanded = expanded;
-                        });
-                      },
-                      leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
-                      title: const Text(
-                        '💡 AI Suggestions',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                Column(
+                  children: [
+                    Expanded(
+                      child: PdfPreview(
+                        build: (format) => _pdfService.generatePdf(cv, cv.template),
+                        useActions: false,
+                        canChangePageFormat: false,
+                        loadingWidget: const Center(child: CircularProgressIndicator()),
                       ),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: cv.scoreFeedback
-                                .map((feed) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8.0),
-                                      child: Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(Icons.check_circle_outline,
-                                              size: 18, color: Colors.greenAccent),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              feed,
-                                              style: const TextStyle(color: Colors.white70, height: 1.4),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
-                ],
 
-                // Action panel
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  color: Colors.black45,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Download
-                      _buildBottomAction(
-                        icon: Icons.download,
-                        label: 'Download',
-                        isLoading: _isDownloading,
-                        onTap: () => _handleDownloadAndUpload(cv, user.uid),
-                      ),
-                      // Edit
-                      _buildBottomAction(
-                        icon: Icons.edit_note,
-                        label: 'Edit',
-                        onTap: () => _showEditBottomSheet(cv, user.uid),
-                      ),
-                      // Pro sharing placeholder
-                      if (user.isPro)
-                        _buildBottomAction(
-                          icon: Icons.share,
-                          label: 'Share',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sharing enabled for PRO members!')),
-                            );
+                    // Collapsible AI suggestions suggestions
+                    if (cv.scoreFeedback.isNotEmpty) ...[
+                      Card(
+                        margin: const EdgeInsets.all(12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        child: ExpansionTile(
+                          initiallyExpanded: _isAiSuggestionsExpanded,
+                          onExpansionChanged: (expanded) {
+                            setState(() {
+                              _isAiSuggestionsExpanded = expanded;
+                            });
                           },
+                          leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
+                          title: const Text(
+                            '💡 AI Suggestions',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: cv.scoreFeedback
+                                    .map((feed) => Padding(
+                                          padding: const EdgeInsets.only(bottom: 8.0),
+                                          child: Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Icon(Icons.check_circle_outline,
+                                                  size: 18, color: Colors.greenAccent),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  feed,
+                                                  style: const TextStyle(color: Colors.white70, height: 1.4),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ))
+                                    .toList(),
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
                     ],
+
+                    // Action panel
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.black45,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          // Download
+                          _buildBottomAction(
+                            icon: Icons.download,
+                            label: 'Download',
+                            isLoading: _isDownloading,
+                            onTap: () => _handleDownloadAndUpload(cv, user.uid),
+                          ),
+                          // Edit
+                          _buildBottomAction(
+                            icon: Icons.edit_note,
+                            label: 'Edit',
+                            onTap: () => _showEditBottomSheet(cv, user.uid),
+                          ),
+                          // Pro sharing placeholder
+                          if (user.isPro)
+                            _buildBottomAction(
+                              icon: Icons.share,
+                              label: 'Share',
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Sharing enabled for PRO members!')),
+                                );
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  right: 20,
+                  bottom: 96,
+                  child: FloatingActionButton(
+                    backgroundColor: theme.colorScheme.secondary,
+                    foregroundColor: Colors.black,
+                    onPressed: () => _showVoiceEditBottomSheet(cv, user.uid),
+                    child: const Icon(Icons.mic),
                   ),
                 ),
               ],
@@ -307,6 +329,20 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return _EditCvBottomSheet(
+          cv: cv,
+          userId: userId,
+        );
+      },
+    );
+  }
+
+  void _showVoiceEditBottomSheet(CvModel cv, String userId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _VoiceEditBottomSheet(
           cv: cv,
           userId: userId,
         );
@@ -517,6 +553,324 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
           filled: true,
           fillColor: Colors.white.withOpacity(0.05),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceEditBottomSheet extends StatefulWidget {
+  final CvModel cv;
+  final String userId;
+
+  const _VoiceEditBottomSheet({
+    required this.cv,
+    required this.userId,
+  });
+
+  @override
+  State<_VoiceEditBottomSheet> createState() => _VoiceEditBottomSheetState();
+}
+
+class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
+  final SpeechToText _speech = SpeechToText();
+  bool _speechInitialized = false;
+  bool _isListening = false;
+  bool _isNepali = false;
+  String _transcribedText = '';
+  bool _isApplying = false;
+
+  @override
+  void dispose() {
+    _speech.stop();
+    super.dispose();
+  }
+
+  Future<void> _handleMicTap() async {
+    final status = await Permission.microphone.status;
+    if (status.isGranted) {
+      _toggleListening();
+    } else {
+      final newStatus = await Permission.microphone.request();
+      if (newStatus.isGranted) {
+        _toggleListening();
+      } else {
+        _showPermissionExplanationDialog();
+      }
+    }
+  }
+
+  void _showPermissionExplanationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Microphone Permission Required'),
+          content: const Text(
+            'Resumind needs access to your microphone to enable voice editing. Please enable it in the app settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                openAppSettings();
+              },
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+    } else {
+      if (!_speechInitialized) {
+        final init = await _speech.initialize(
+          onError: (e) {
+            debugPrint('Speech error: $e');
+            if (mounted) {
+              setState(() => _isListening = false);
+            }
+          },
+          onStatus: (status) {
+            debugPrint('Speech status: $status');
+            if (status == 'done' || status == 'notListening') {
+              if (mounted) {
+                setState(() => _isListening = false);
+              }
+            }
+          },
+        );
+        if (mounted) {
+          setState(() {
+            _speechInitialized = init;
+          });
+        }
+        if (!init) return;
+      }
+
+      String localeId = _isNepali ? 'ne_NP' : 'en_US';
+      if (_isNepali) {
+        final locales = await _speech.locales();
+        final supportsNepali = locales.any((l) =>
+            l.localeId.replaceAll('_', '-').toLowerCase() == 'ne-np' ||
+            l.localeId.split('_').first == 'ne');
+        if (!supportsNepali) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Nepali voice not supported on this device, using English')),
+            );
+          }
+          localeId = 'en_US';
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _isListening = true;
+          _transcribedText = '';
+        });
+      }
+
+      await _speech.listen(
+        localeId: localeId,
+        onResult: (result) {
+          if (mounted) {
+            setState(() {
+              _transcribedText = result.recognizedWords;
+            });
+          }
+        },
+      );
+    }
+  }
+
+  Future<void> _applyChange() async {
+    if (_transcribedText.trim().isEmpty) return;
+
+    setState(() => _isApplying = true);
+    final gemini = const GeminiService();
+
+    try {
+      final currentCvJson = widget.cv.generatedContent;
+      final updatedContent = await gemini.editCv(
+        currentCvJson: currentCvJson,
+        transcribedText: _transcribedText.trim(),
+      );
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .collection('cvs')
+          .doc(widget.cv.id)
+          .update({
+        'generatedContent': updatedContent,
+        'version': FieldValue.increment(1),
+        'updatedAt': Timestamp.now(),
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Close bottom sheet
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('CV updated ✓')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Voice edit failed: ${e.toString().replaceAll('Exception:', '').trim()}'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isApplying = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTranscribed = _transcribedText.trim().isNotEmpty;
+
+    return LoadingOverlay(
+      isLoading: _isApplying,
+      message: 'Applying changes with Gemini...',
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.only(
+          left: 20.0,
+          right: 20.0,
+          top: 20.0,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24.0,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Voice Edit',
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Tell me what to change in English or Nepali',
+                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white60),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ChoiceChip(
+                    label: const Text('EN'),
+                    selected: !_isNepali,
+                    onSelected: (selected) {
+                      if (selected) setState(() => _isNepali = false);
+                    },
+                    selectedColor: theme.colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: !_isNepali ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('नेपाली'),
+                    selected: _isNepali,
+                    onSelected: (selected) {
+                      if (selected) setState(() => _isNepali = true);
+                    },
+                    selectedColor: theme.colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: _isNepali ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Column(
+                children: [
+                  if (_isListening) ...[
+                    const ListeningLabel(),
+                    const SizedBox(height: 8),
+                  ],
+                  PulsingMicButton(
+                    isListening: _isListening,
+                    onTap: _handleMicTap,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              constraints: const BoxConstraints(minHeight: 80),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Text(
+                _transcribedText.isEmpty
+                    ? 'Press the microphone and start speaking...'
+                    : _transcribedText,
+                style: TextStyle(
+                  color: _transcribedText.isEmpty ? Colors.white30 : Colors.white,
+                  fontStyle: _transcribedText.isEmpty ? FontStyle.italic : FontStyle.normal,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            CustomButton(
+              text: 'Apply Change',
+              onPressed: isTranscribed ? _applyChange : null,
+            ),
+          ],
         ),
       ),
     );
