@@ -935,13 +935,13 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
     if (_transcribedText.trim().isEmpty) return;
 
     setState(() => _isApplying = true);
-    final gemini = const GeminiService();
+    final gemini = GeminiService();
 
     try {
       final currentCvJson = widget.cv.generatedContent;
       final updatedContent = await gemini.editCv(
-        currentCvJson: currentCvJson,
-        transcribedText: _transcribedText.trim(),
+        currentCvData: currentCvJson,
+        editInstruction: _transcribedText.trim(),
       );
 
       // Snapshot current state before overwriting (version history)
