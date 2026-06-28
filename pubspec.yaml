@@ -28,7 +28,7 @@ dependencies:
   google_sign_in: ^6.2.2
 
   # AI
-  google_generative_ai: ^0.4.6
+  google_generative_ai: ^0.4.7
 
   # Speech-to-Text
   speech_to_text: ^7.0.0
