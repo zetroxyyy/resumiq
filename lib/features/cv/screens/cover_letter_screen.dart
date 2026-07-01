@@ -17,7 +17,7 @@ import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/docx_service.dart';
-import '../services/gemini_service.dart';
+import '../services/ai_service.dart';
 import '../services/pdf_service.dart';
 
 class CoverLetterScreen extends ConsumerStatefulWidget {
@@ -38,7 +38,7 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
   final _jobDescController = TextEditingController();
   late TextEditingController _coverLetterTextController;
 
-  final GeminiService _gemini = GeminiService();
+  final AiService _gemini = AiService();
   final PdfService _pdfService = const PdfService();
   final DocxService _docxService = const DocxService();
   final CloudinaryService _cloudinary = CloudinaryService();

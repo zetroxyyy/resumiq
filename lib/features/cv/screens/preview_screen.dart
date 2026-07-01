@@ -20,7 +20,7 @@ import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
 import '../services/docx_service.dart';
-import '../services/gemini_service.dart';
+import '../services/ai_service.dart';
 
 class PreviewScreen extends ConsumerStatefulWidget {
   final String cvId;
@@ -935,7 +935,7 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
     if (_transcribedText.trim().isEmpty) return;
 
     setState(() => _isApplying = true);
-    final gemini = GeminiService();
+    final gemini = AiService();
 
     try {
       final currentCvJson = widget.cv.generatedContent;

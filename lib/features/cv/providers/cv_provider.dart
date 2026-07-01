@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/cv_model.dart';
 import '../models/version_model.dart';
-import '../services/gemini_service.dart';
+import '../services/ai_service.dart';
 
 class CvInputState {
   final String rawInput;
@@ -43,7 +43,7 @@ final cvGenerationProvider = StateNotifierProvider<CvGenerationNotifier, CvGener
 
 class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
   final Ref _ref;
-  final GeminiService _gemini = GeminiService();
+  final AiService _gemini = AiService();
 
   CvGenerationNotifier(this._ref) : super(const CvGenerationState());
 
