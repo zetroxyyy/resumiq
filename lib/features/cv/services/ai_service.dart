@@ -128,6 +128,8 @@ STRICT RULES YOU MUST FOLLOW:
 10. Score honestly. A CV with missing work experience should score 
     50-60. A complete CV with good detail should score 75-85. 
     A perfect CV with quantified achievements scores 90+.
+11. The "atsOptimized" field in the JSON response must be explicitly 
+    set to true if ATS-optimized, and false otherwise.
 
 CV Type requested: $cvType
 ${jobDescription != null && jobDescription.isNotEmpty ? '''
@@ -213,12 +215,16 @@ Required JSON structure:
         .trim();
 
     try {
-      return jsonDecode(cleaned) as Map<String, dynamic>;
+      final map = jsonDecode(cleaned) as Map<String, dynamic>;
+      map['atsOptimized'] = map['atsOptimized'] == true;
+      return map;
     } catch (e) {
       debugPrint('JSON parse error: $e\nRaw: $cleaned');
       final match = RegExp(r'\{[\s\S]*\}').firstMatch(cleaned);
       if (match != null) {
-        return jsonDecode(match.group(0)!) as Map<String, dynamic>;
+        final map = jsonDecode(match.group(0)!) as Map<String, dynamic>;
+        map['atsOptimized'] = map['atsOptimized'] == true;
+        return map;
       }
       throw Exception('AI returned invalid response. Please try again.');
     }

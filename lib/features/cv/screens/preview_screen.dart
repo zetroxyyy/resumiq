@@ -246,6 +246,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           return const Scaffold(body: Center(child: Text('CV not found.')));
         }
         final theme = Theme.of(context);
+        final bool isAtsMode = cv.generatedContent['atsOptimized'] == true;
 
         final score = cv.score ?? 0;
         final scoreColor = score >= 80
@@ -358,7 +359,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                     ],
 
                     // ATS Banner above action bar when atsOptimized is true
-                    if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true)
+                    if (isAtsMode)
                       Container(
                         color: theme.colorScheme.secondary.withOpacity(0.9),
                         width: double.infinity,
@@ -655,7 +656,17 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
   }
 
   Future<void> _saveChanges() async {
-    final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please sign out and sign in again.')),
+        );
+      }
+      return;
+    }
+
+    final String userId = currentUser.uid;
     final String cvId = widget.cv.id;
 
     if (userId.isEmpty || cvId.isEmpty) {
@@ -692,7 +703,11 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
         changedBy: 'manual_edit',
       );
 
-      debugPrint('Saving CV: userId=$userId, cvId=$cvId');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      debugPrint('Auth UID: ${currentUser?.uid}');
+      debugPrint('Auth email: ${currentUser?.email}');
+      debugPrint('CV userId being used: $userId');
+      debugPrint('CV id being used: $cvId');
 
       await FirebaseFirestore.instance
           .collection('users')
