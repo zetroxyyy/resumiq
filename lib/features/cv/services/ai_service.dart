@@ -92,37 +92,120 @@ class AiService {
         : '';
 
     final prompt = '''
-You are a world-class professional CV writer. Transform this raw information into a perfectly structured, professional CV. Think deeply. Extract all details. Use strong professional language.
+You are a senior professional CV writer with 20 years of experience 
+helping candidates land jobs at top companies. You have written 
+thousands of CVs across all industries. Your CVs are known for 
+being precise, impactful, and tailored.
+
+Your task: Transform the raw information below into a world-class 
+professional CV. Take your time to think deeply about every detail.
+
+STRICT RULES YOU MUST FOLLOW:
+1. Every bullet point under work experience must start with a 
+   strong action verb (Developed, Led, Managed, Increased, Built, 
+   Designed, Implemented, Achieved, Delivered, Created, etc.)
+2. Quantify achievements wherever possible. If the person says 
+   "worked on a team", write "Collaborated with cross-functional 
+   team of X members". If they say "improved performance", write 
+   "Improved system performance by an estimated 30%".
+3. The professional summary must be 3-4 sentences. It must mention 
+   years of experience, key skills, and career goal. It must be 
+   written in third person (e.g. "Experienced software developer...")
+4. Never use the words "responsible for" or "worked on" — replace 
+   with specific action verbs.
+5. If information is missing (like exact dates), use reasonable 
+   professional estimates. Never leave fields empty if you can 
+   infer from context.
+6. Skills must be specific. Not "programming" but "Python 3.x, 
+   Django REST Framework". Not "communication" but "Cross-functional 
+   team collaboration".
+7. If the person mentions any project, expand it into a proper 
+   project description with technologies used and impact.
+8. Education section must include the degree type, field, 
+   institution, and years clearly.
+9. The CV must read like it was written by the person themselves 
+   at their absolute best — not like an AI summarized their notes.
+10. Score honestly. A CV with missing work experience should score 
+    50-60. A complete CV with good detail should score 75-85. 
+    A perfect CV with quantified achievements scores 90+.
+
+CV Type requested: $cvType
+${jobDescription != null && jobDescription.isNotEmpty ? '''
+JOB DESCRIPTION TO TAILOR FOR:
+$jobDescription
+Make every section of the CV speak directly to this job. 
+Use keywords from the job description naturally.''' : ''}
 $atsNote
 
-CV Type: $cvType
-${jobDescription != null && jobDescription.isNotEmpty ? 'Job Description (tailor for this): $jobDescription' : ''}
-
-Raw Information:
+RAW INFORMATION FROM USER:
 $rawInput
 
-Respond ONLY with valid JSON, no markdown, no explanation, no code fences. Use this exact structure:
+Respond ONLY with valid JSON. No markdown. No explanation. 
+No text before or after the JSON. Just the JSON object.
+
+Required JSON structure:
 {
-  "personalInfo": {"fullName": "", "email": "", "phone": "", "location": "", "linkedIn": "", "portfolio": ""},
-  "summary": "",
-  "workExperience": [{"company": "", "role": "", "startDate": "", "endDate": "", "current": false, "responsibilities": []}],
-  "education": [{"institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "grade": ""}],
-  "skills": {"technical": [], "soft": [], "languages": []},
-  "certifications": [{"name": "", "issuer": "", "date": "", "url": ""}],
-  "projects": [{"name": "", "description": "", "tech": [], "url": ""}],
-  "achievements": [],
+  "personalInfo": {
+    "fullName": "Full name here",
+    "email": "email@example.com", 
+    "phone": "+977-XXXXXXXXXX",
+    "location": "City, Country",
+    "linkedIn": "",
+    "portfolio": ""
+  },
+  "summary": "3-4 sentence professional summary in third person",
+  "workExperience": [
+    {
+      "company": "Company Name",
+      "role": "Job Title",
+      "startDate": "Month Year",
+      "endDate": "Month Year or Present",
+      "current": false,
+      "responsibilities": [
+        "Action verb + specific achievement with context",
+        "Action verb + specific achievement with context",
+        "Action verb + specific achievement with context"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University/School Name",
+      "degree": "Bachelor of / Master of / etc",
+      "field": "Field of Study",
+      "startDate": "Year",
+      "endDate": "Year",
+      "grade": "GPA or percentage if mentioned"
+    }
+  ],
+  "skills": {
+    "technical": ["Specific Skill 1", "Specific Skill 2"],
+    "soft": ["Leadership", "Team Collaboration"],
+    "languages": ["English (Fluent)", "Nepali (Native)"]
+  },
+  "certifications": [],
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "What it does, your role, and impact",
+      "tech": ["Tech1", "Tech2"],
+      "url": ""
+    }
+  ],
+  "achievements": ["Specific achievement 1", "Specific achievement 2"],
   "references": "Available upon request",
   "cvType": "$cvType",
   "atsOptimized": ${atsOptimized.toString()},
   "score": 0,
-  "scoreFeedback": []
+  "scoreFeedback": [
+    "Specific suggestion 1",
+    "Specific suggestion 2", 
+    "Specific suggestion 3"
+  ]
 }
-Score 0-100: completeness 40%, language impact 30%, structure 30%.
-scoreFeedback: 2-3 specific improvement suggestions.
-Return ONLY the JSON object. Nothing else.
 ''';
 
-    final text = await _callGroq(prompt);
+    final text = await _callGroq(prompt, temperature: 0.4);
 
     String cleaned = text
         .replaceAll(RegExp(r'```json\s*'), '')

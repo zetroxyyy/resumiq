@@ -686,11 +686,16 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
           .doc(widget.cv.id)
           .update({
         'generatedContent': _editedContent,
+        'updatedAt': FieldValue.serverTimestamp(),
         'version': FieldValue.increment(1),
-        'updatedAt': Timestamp.now(),
       });
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Changes saved successfully!')),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

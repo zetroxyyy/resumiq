@@ -67,12 +67,22 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         atsOptimized: inputData.atsOptimized,
       );
 
+      final personalInfo = generatedContent['personalInfo'] as Map<String, dynamic>?;
+      final fullName = personalInfo?['fullName'] as String? ?? '';
+      final String cvTitle;
+      if (fullName.trim().isNotEmpty) {
+        cvTitle = "${fullName.trim()}'s CV";
+      } else {
+        cvTitle = "My CV ${DateTime.now().millisecondsSinceEpoch}";
+      }
+
       // Persist to Firestore
       final cvRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cvs')
           .add({
+        'title': cvTitle,
         'generatedContent': generatedContent,
         'template': 'clean',
         'cvType': inputData.format,
@@ -81,6 +91,18 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         'updatedAt': FieldValue.serverTimestamp(),
         'version': 1,
       });
+
+      // Try to increment generationsThisMonth on the user document
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
+          'generationsThisMonth': FieldValue.increment(1),
+        });
+      } catch (e) {
+        debugPrint('Failed to increment generationsThisMonth: $e');
+      }
 
       final cvId = cvRef.id;
 
