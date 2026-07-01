@@ -76,6 +76,16 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         cvTitle = "My CV ${DateTime.now().millisecondsSinceEpoch}";
       }
 
+      int score = 0;
+      final rawScore = generatedContent['score'];
+      if (rawScore != null) {
+        if (rawScore is int) score = rawScore;
+        else if (rawScore is double) score = rawScore.toInt();
+        else if (rawScore is String) score = int.tryParse(rawScore) ?? 0;
+      }
+
+      final scoreFeedbackList = List<String>.from(generatedContent['scoreFeedback'] as List? ?? []);
+
       // Persist to Firestore
       final cvRef = await FirebaseFirestore.instance
           .collection('users')
@@ -87,6 +97,8 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         'template': 'clean',
         'cvType': inputData.format,
         'atsOptimized': inputData.atsOptimized,
+        'score': score,
+        'scoreFeedback': scoreFeedbackList,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'version': 1,
@@ -241,11 +253,22 @@ Future<void> restoreVersion({
     );
   }
 
+  int score = 0;
+  final rawScore = version.generatedContent['score'];
+  if (rawScore != null) {
+    if (rawScore is int) score = rawScore;
+    else if (rawScore is double) score = rawScore.toInt();
+    else if (rawScore is String) score = int.tryParse(rawScore) ?? 0;
+  }
+  final scoreFeedbackList = List<String>.from(version.generatedContent['scoreFeedback'] as List? ?? []);
+
   // Now restore
   await cvRef.update({
     'generatedContent': version.generatedContent,
     'template': version.template,
+    'score': score,
+    'scoreFeedback': scoreFeedbackList,
     'version': FieldValue.increment(1),
-    'updatedAt': Timestamp.now(),
+    'updatedAt': FieldValue.serverTimestamp(),
   });
 }

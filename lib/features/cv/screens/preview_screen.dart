@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -654,6 +655,18 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
   }
 
   Future<void> _saveChanges() async {
+    final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final String cvId = widget.cv.id;
+
+    if (userId.isEmpty || cvId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: User ID or CV ID is missing.')),
+        );
+      }
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     // Update locally edited variables
@@ -671,19 +684,21 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
     try {
       // Snapshot current state before overwriting (version history)
       await saveVersion(
-        uid: widget.userId,
-        cvId: widget.cv.id,
+        uid: userId,
+        cvId: cvId,
         generatedContent:
             Map<String, dynamic>.from(widget.cv.generatedContent),
         template: widget.cv.template,
         changedBy: 'manual_edit',
       );
 
+      debugPrint('Saving CV: userId=$userId, cvId=$cvId');
+
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId)
+          .doc(userId)
           .collection('cvs')
-          .doc(widget.cv.id)
+          .doc(cvId)
           .update({
         'generatedContent': _editedContent,
         'updatedAt': FieldValue.serverTimestamp(),

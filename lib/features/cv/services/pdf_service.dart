@@ -54,25 +54,32 @@ class PdfService {
   // ==========================================
   // TEMPLATE 1: CLEAN (Default)
   // ==========================================
+  
+  static const _primaryColor = PdfColor.fromInt(0xFF2C3E50);
+  static const _accentColor = PdfColor.fromInt(0xFF6C63FF);
+  static const _lightGray = PdfColor.fromInt(0xFFF5F5F5);
+  static const _textGray = PdfColor.fromInt(0xFF555555);
+  static const _dividerGray = PdfColor.fromInt(0xFFE8E8E8);
+
   Future<Uint8List> _generateClean(CvModel cv, {bool isPro = false, String? qrUrl}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
-    final summary = content['summary'] as String? ?? '';
+    final summary = _str(content['summary']);
     final experiences = content['workExperience'] as List? ?? [];
     final educations = content['education'] as List? ?? [];
     final skillsMap = content['skills'] as Map<String, dynamic>? ?? {};
     final certifications = content['certifications'] as List? ?? [];
     final projects = content['projects'] as List? ?? [];
     final achievements = content['achievements'] as List? ?? [];
-    final references = content['references'] as String? ?? '';
+    final references = _str(content['references']);
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final contactInfo = [
       if (email.isNotEmpty) email,
@@ -85,14 +92,33 @@ class PdfService {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
+        margin: const pw.EdgeInsets.only(top: 40, bottom: 40, left: 50, right: 50),
         pageTheme: _buildPageTheme(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(36),
+          margin: const pw.EdgeInsets.only(top: 40, bottom: 40, left: 50, right: 50),
           isPro: isPro,
           qrUrl: qrUrl,
         ),
-        footer: (context) => _buildQrFooter(context, isPro, qrUrl),
+        footer: (context) {
+          final showQr = context.pageNumber == 1 && isPro && qrUrl != null;
+          return pw.Container(
+            alignment: pw.Alignment.bottomCenter,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                if (showQr)
+                  _buildQrCode(qrUrl)
+                else
+                  pw.SizedBox(),
+                pw.Text(
+                  'Page ${context.pageNumber} of ${context.pagesCount}',
+                  style: const pw.TextStyle(fontSize: 8, color: _textGray),
+                ),
+              ],
+            ),
+          );
+        },
         build: (pw.Context context) {
           return [
             // Header
@@ -102,45 +128,54 @@ class PdfService {
                 pw.Text(
                   name,
                   style: pw.TextStyle(
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromHex('#1A1A2E'),
+                    color: _primaryColor,
                   ),
                 ),
                 pw.SizedBox(height: 4),
-                pw.Text(
-                  contactInfo,
-                  style: const pw.TextStyle(
-                    fontSize: 9.5,
-                    color: PdfColors.grey700,
-                  ),
+                pw.Container(
+                  height: 3,
+                  width: 120,
+                  color: _accentColor,
                 ),
+                pw.SizedBox(height: 8),
+                if (contactInfo.isNotEmpty)
+                  pw.Text(
+                    contactInfo,
+                    style: const pw.TextStyle(
+                      fontSize: 9,
+                      color: _textGray,
+                    ),
+                  ),
               ],
             ),
-            pw.SizedBox(height: 12),
-            pw.Divider(color: PdfColors.grey300, thickness: 1.0),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: 16),
 
             // Summary Section
             if (summary.isNotEmpty) ...[
-              _buildCleanHeader('PROFESSIONAL SUMMARY'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('Summary'),
               pw.Text(
                 summary,
-                style: const pw.TextStyle(fontSize: 10, lineSpacing: 1.2),
+                style: const pw.TextStyle(fontSize: 9.5, color: _textGray, lineSpacing: 1.3),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Experience Section
             if (experiences.isNotEmpty) ...[
-              _buildCleanHeader('WORK EXPERIENCE'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('Work Experience'),
               ...experiences.map((exp) {
                 final item = exp as Map<String, dynamic>;
                 final duties = item['responsibilities'] as List? ?? [];
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 14),
+                final role = _str(item['role']);
+                final company = _str(item['company']);
+                final start = _str(item['startDate']);
+                final end = item['current'] == true ? 'Present' : _str(item['endDate']);
+                final dateRange = [if (start.isNotEmpty) start, if (end.isNotEmpty) end].join(' - ');
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
@@ -148,213 +183,287 @@ class PdfService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            '${item['role']} at ${item['company']}',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10.5),
+                            role,
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10.5, color: _primaryColor),
                           ),
                           pw.Text(
-                            '${item['startDate'] ?? ''} - ${item['current'] == true ? 'Present' : item['endDate'] ?? ''}',
-                            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                            dateRange,
+                            style: const pw.TextStyle(fontSize: 9, color: _textGray),
                           ),
                         ],
                       ),
-                      pw.SizedBox(height: 6),
-                      ...duties.map((duty) => pw.Padding(
-                            padding: const pw.EdgeInsets.only(left: 8, bottom: 3),
-                            child: pw.Row(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                pw.Text('• ', style: const pw.TextStyle(fontSize: 10)),
-                                pw.Expanded(
-                                  child: pw.Text(
-                                    duty as String,
-                                    style: const pw.TextStyle(fontSize: 9.5),
-                                  ),
+                      if (company.isNotEmpty)
+                        pw.Text(
+                          company,
+                          style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 9.5, color: _textGray),
+                        ),
+                      pw.SizedBox(height: 4),
+                      ...duties.map((duty) {
+                        final dutyStr = _str(duty);
+                        if (dutyStr.isEmpty) return pw.SizedBox();
+                        return pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 12, bottom: 3),
+                          child: pw.Row(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('- ', style: const pw.TextStyle(fontSize: 9, color: _textGray)),
+                              pw.Expanded(
+                                child: pw.Text(
+                                  dutyStr,
+                                  style: const pw.TextStyle(fontSize: 9, color: _textGray, lineSpacing: 1.4),
                                 ),
-                              ],
-                            ),
-                          )),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 );
               }),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Education Section
             if (educations.isNotEmpty) ...[
-              _buildCleanHeader('EDUCATION'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('Education'),
               ...educations.map((edu) {
                 final item = edu as Map<String, dynamic>;
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 10),
-                  child: pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                final degree = _str(item['degree']);
+                final field = _str(item['field']);
+                final institution = _str(item['institution']);
+                final start = _str(item['startDate']);
+                final end = _str(item['endDate']);
+                final years = [if (start.isNotEmpty) start, if (end.isNotEmpty) end].join(' - ');
+                final degreeField = [if (degree.isNotEmpty) degree, if (field.isNotEmpty) field].join(' in ');
+                final grade = _str(item['grade']);
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(
-                              '${item['degree']} in ${item['field']}',
-                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
-                            ),
-                            pw.Text(
-                              item['institution'] as String? ?? '',
-                              style: const pw.TextStyle(fontSize: 9),
-                            ),
-                          ],
-                        ),
-                      ),
-                      pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.end,
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                          pw.Text(
-                            '${item['startDate'] ?? ''} - ${item['endDate'] ?? ''}',
-                            style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
-                          ),
-                          if (item['grade'] != null && (item['grade'] as String).isNotEmpty)
-                            pw.Text(
-                              'Grade: ${item['grade']}',
-                              style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
+                          pw.Expanded(
+                            child: pw.Text(
+                              degreeField,
+                              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10.5, color: _primaryColor),
                             ),
+                          ),
+                          pw.Text(
+                            years,
+                            style: const pw.TextStyle(fontSize: 9, color: _textGray),
+                          ),
                         ],
                       ),
+                      if (institution.isNotEmpty)
+                        pw.Text(
+                          institution,
+                          style: pw.TextStyle(fontStyle: pw.FontStyle.italic, fontSize: 9.5, color: _textGray),
+                        ),
+                      if (grade.isNotEmpty) ...[
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Grade: $grade',
+                          style: const pw.TextStyle(fontSize: 9, color: _textGray),
+                        ),
+                      ],
                     ],
                   ),
                 );
               }),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Skills Section
             if (skillsMap.isNotEmpty) ...[
-              _buildCleanHeader('SKILLS'),
-              pw.SizedBox(height: 6),
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        if (skillsMap['technical'] != null) ...[
-                          pw.Text('Technical:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5)),
-                          pw.Text((skillsMap['technical'] as List).join(', '), style: const pw.TextStyle(fontSize: 9)),
-                          pw.SizedBox(height: 8),
-                        ],
-                        if (skillsMap['languages'] != null) ...[
-                          pw.Text('Languages:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5)),
-                          pw.Text((skillsMap['languages'] as List).join(', '), style: const pw.TextStyle(fontSize: 9)),
-                        ],
-                      ],
-                    ),
-                  ),
-                  pw.SizedBox(width: 24),
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        if (skillsMap['soft'] != null) ...[
-                          pw.Text('Soft Skills:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5)),
-                          pw.Text((skillsMap['soft'] as List).join(', '), style: const pw.TextStyle(fontSize: 9)),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+              _buildCleanHeader('Skills'),
+              pw.Container(
+                decoration: const pw.BoxDecoration(
+                  color: _lightGray,
+                  borderRadius: pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                padding: const pw.EdgeInsets.all(6),
+                child: pw.Column(
+                  children: [
+                    if (skillsMap['technical'] != null && (skillsMap['technical'] as List).isNotEmpty)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Container(
+                              width: 90,
+                              child: pw.Text('Technical:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: _primaryColor)),
+                            ),
+                            pw.Expanded(
+                              child: pw.Text(
+                                (skillsMap['technical'] as List).map((s) => _str(s)).where((s) => s.isNotEmpty).join(' - '),
+                                style: const pw.TextStyle(fontSize: 9, color: _textGray),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (skillsMap['soft'] != null && (skillsMap['soft'] as List).isNotEmpty)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Container(
+                              width: 90,
+                              child: pw.Text('Soft Skills:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: _primaryColor)),
+                            ),
+                            pw.Expanded(
+                              child: pw.Text(
+                                (skillsMap['soft'] as List).map((s) => _str(s)).where((s) => s.isNotEmpty).join(' - '),
+                                style: const pw.TextStyle(fontSize: 9, color: _textGray),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (skillsMap['languages'] != null && (skillsMap['languages'] as List).isNotEmpty)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                        child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Container(
+                              width: 90,
+                              child: pw.Text('Languages:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9, color: _primaryColor)),
+                            ),
+                            pw.Expanded(
+                              child: pw.Text(
+                                (skillsMap['languages'] as List).map((s) => _str(s)).where((s) => s.isNotEmpty).join(' - '),
+                                style: const pw.TextStyle(fontSize: 9, color: _textGray),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Projects Section
             if (projects.isNotEmpty) ...[
-              _buildCleanHeader('PROJECTS'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('Projects'),
               ...projects.map((proj) {
                 final item = proj as Map<String, dynamic>;
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 10),
+                final projName = _str(item['name']);
+                final projDesc = _str(item['description']);
+                final projTech = (item['tech'] as List? ?? []).map((t) => _str(t)).where((t) => t.isNotEmpty).join(', ');
+                final projUrl = _str(item['url']);
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 10),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        item['name'] as String? ?? '',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+                      pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            projName,
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: _primaryColor),
+                          ),
+                          if (projUrl.isNotEmpty)
+                            pw.Text(
+                              projUrl,
+                              style: const pw.TextStyle(fontSize: 9, color: _accentColor),
+                            ),
+                        ],
                       ),
-                      if (item['description'] != null)
+                      if (projDesc.isNotEmpty)
                         pw.Text(
-                          item['description'] as String,
-                          style: const pw.TextStyle(fontSize: 9.5),
+                          projDesc,
+                          style: const pw.TextStyle(fontSize: 9, color: _textGray),
                         ),
-                      if (item['tech'] != null)
+                      if (projTech.isNotEmpty)
                         pw.Text(
-                          'Technologies: ${(item['tech'] as List).join(', ')}',
-                          style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
+                          'Technologies: $projTech',
+                          style: const pw.TextStyle(fontSize: 8.5, color: _textGray),
                         ),
                     ],
                   ),
                 );
               }),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Certifications Section
             if (certifications.isNotEmpty) ...[
-              _buildCleanHeader('CERTIFICATIONS'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('Certifications'),
               ...certifications.map((cert) {
                 final item = cert as Map<String, dynamic>;
-                return pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 8),
+                final certName = _str(item['name']);
+                final certIssuer = _str(item['issuer']);
+                final certDate = _str(item['date']);
+                final certUrl = _str(item['url']);
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text(
-                        item['name'] as String? ?? '',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5),
+                      pw.Expanded(
+                        child: pw.Text(
+                          certName,
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5, color: _primaryColor),
+                        ),
                       ),
                       pw.Text(
-                        '${item['issuer'] ?? ''} (${item['date'] ?? ''})',
-                        style: const pw.TextStyle(fontSize: 9),
+                        [
+                          if (certIssuer.isNotEmpty) certIssuer,
+                          if (certDate.isNotEmpty) '($certDate)',
+                          if (certUrl.isNotEmpty) certUrl,
+                        ].join(' '),
+                        style: const pw.TextStyle(fontSize: 9, color: _textGray),
                       ),
                     ],
                   ),
                 );
               }),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 14),
             ],
 
             // Achievements Section
             if (achievements.isNotEmpty) ...[
-              _buildCleanHeader('ACHIEVEMENTS'),
-              pw.SizedBox(height: 6),
-              ...achievements.map((ach) => pw.Padding(
-                    padding: const pw.EdgeInsets.only(left: 8, bottom: 4),
-                    child: pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('• ', style: const pw.TextStyle(fontSize: 10)),
-                        pw.Expanded(
-                          child: pw.Text(
-                            ach as String,
-                            style: const pw.TextStyle(fontSize: 9.5),
-                          ),
+              _buildCleanHeader('Achievements'),
+              ...achievements.map((ach) {
+                final achStr = _str(ach);
+                if (achStr.isEmpty) return pw.SizedBox();
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.only(left: 12, bottom: 4),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('- ', style: const pw.TextStyle(fontSize: 9, color: _textGray)),
+                      pw.Expanded(
+                        child: pw.Text(
+                          achStr,
+                          style: const pw.TextStyle(fontSize: 9, color: _textGray),
                         ),
-                      ],
-                    ),
-                  )),
-              pw.SizedBox(height: 16),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              pw.SizedBox(height: 14),
             ],
 
             // References
             if (references.isNotEmpty) ...[
-              _buildCleanHeader('REFERENCES'),
-              pw.SizedBox(height: 6),
+              _buildCleanHeader('References'),
               pw.Text(
                 references,
-                style: pw.TextStyle(fontSize: 9.5, fontStyle: pw.FontStyle.italic),
+                style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic, color: _textGray),
               ),
             ],
           ];
@@ -364,6 +473,7 @@ class PdfService {
 
     return pdf.save();
   }
+
 
   // ==========================================
   // TEMPLATE 2: PROFESSIONAL
@@ -381,12 +491,12 @@ class PdfService {
     final achievements = content['achievements'] as List? ?? [];
     final references = content['references'] as String? ?? '';
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final contactInfo = [
       if (email.isNotEmpty) email,
@@ -478,9 +588,9 @@ class PdfService {
                                     '${item['startDate'] ?? ''} - ${item['endDate'] ?? ''}',
                                     style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                                   ),
-                                  if (item['grade'] != null && (item['grade'] as String).isNotEmpty)
+                                  if (_str(item['grade']).isNotEmpty)
                                     pw.Text(
-                                      'Grade: ${item['grade']}',
+                                      'Grade: ${_str(item['grade'])}',
                                       style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
                                     ),
                                 ],
@@ -568,7 +678,7 @@ class PdfService {
                                         child: pw.Row(
                                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                                           children: [
-                                            pw.Text('• ', style: const pw.TextStyle(fontSize: 10)),
+                                            pw.Text('- ', style: const pw.TextStyle(fontSize: 10)),
                                             pw.Expanded(
                                               child: pw.Text(
                                                 duty as String,
@@ -624,7 +734,7 @@ class PdfService {
                                 child: pw.Row(
                                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                                   children: [
-                                    pw.Text('• ', style: const pw.TextStyle(fontSize: 10)),
+                                    pw.Text('- ', style: const pw.TextStyle(fontSize: 10)),
                                     pw.Expanded(
                                       child: pw.Text(
                                         ach as String,
@@ -675,12 +785,12 @@ class PdfService {
     final achievements = content['achievements'] as List? ?? [];
     final references = content['references'] as String? ?? '';
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final contactInfo = [
       if (email.isNotEmpty) email,
@@ -947,12 +1057,12 @@ class PdfService {
     final achievements = content['achievements'] as List? ?? [];
     final references = content['references'] as String? ?? '';
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final contactInfo = [
       if (email.isNotEmpty) email,
@@ -1041,7 +1151,7 @@ class PdfService {
                             child: pw.Row(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
-                                pw.Text('• ', style: const pw.TextStyle(fontSize: 9)),
+                                pw.Text('- ', style: const pw.TextStyle(fontSize: 9)),
                                 pw.Expanded(
                                   child: pw.Text(
                                     duty as String,
@@ -1137,7 +1247,7 @@ class PdfService {
                 return pw.Padding(
                   padding: const pw.EdgeInsets.only(bottom: 6),
                   child: pw.Text(
-                    '• ${item['name']} - ${item['issuer']} (${item['date'] ?? ''})',
+                    '- ${item['name']} - ${item['issuer']} (${item['date'] ?? ''})',
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                 );
@@ -1153,7 +1263,7 @@ class PdfService {
                     padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
                     child: pw.Row(
                       children: [
-                        pw.Text('• ', style: const pw.TextStyle(fontSize: 9)),
+                        pw.Text('- ', style: const pw.TextStyle(fontSize: 9)),
                         pw.Expanded(child: pw.Text(ach as String, style: const pw.TextStyle(fontSize: 9))),
                       ],
                     ),
@@ -1197,13 +1307,13 @@ class PdfService {
   List<pw.Widget> _buildBasicSkillsList(Map<String, dynamic> skillsMap) {
     final List<pw.Widget> items = [];
     if (skillsMap['technical'] != null) {
-      items.add(pw.Text('• Technical: ${(skillsMap['technical'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
+      items.add(pw.Text('- Technical: ${(skillsMap['technical'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
     }
     if (skillsMap['soft'] != null) {
-      items.add(pw.Text('• Soft Skills: ${(skillsMap['soft'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
+      items.add(pw.Text('- Soft Skills: ${(skillsMap['soft'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
     }
     if (skillsMap['languages'] != null) {
-      items.add(pw.Text('• Languages: ${(skillsMap['languages'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
+      items.add(pw.Text('- Languages: ${(skillsMap['languages'] as List).join(', ')}', style: const pw.TextStyle(fontSize: 9)));
     }
     return items;
   }
@@ -1224,12 +1334,12 @@ class PdfService {
     final achievements = content['achievements'] as List? ?? [];
     final references = content['references'] as String? ?? '';
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final primaryColor = PdfColor.fromHex('#6C63FF');
 
@@ -1292,27 +1402,27 @@ class PdfService {
                       pw.SizedBox(height: 16),
                       // Stacked Contact Info
                       if (email.isNotEmpty) ...[
-                        pw.Text('✉ Email', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                        pw.Text('Email', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.Text(email, style: const pw.TextStyle(fontSize: 7.5)),
                         pw.SizedBox(height: 8),
                       ],
                       if (phone.isNotEmpty) ...[
-                        pw.Text('☎ Phone', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                        pw.Text('Phone', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.Text(phone, style: const pw.TextStyle(fontSize: 7.5)),
                         pw.SizedBox(height: 8),
                       ],
                       if (location.isNotEmpty) ...[
-                        pw.Text('📍 Location', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                        pw.Text('Location', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.Text(location, style: const pw.TextStyle(fontSize: 7.5)),
                         pw.SizedBox(height: 8),
                       ],
                       if (linkedin.isNotEmpty) ...[
-                        pw.Text('🔗 LinkedIn', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                        pw.Text('LinkedIn', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.Text(linkedin.replaceFirst(RegExp(r'https?://(www\.)?'), ''), style: const pw.TextStyle(fontSize: 7)),
                         pw.SizedBox(height: 8),
                       ],
                       if (portfolio.isNotEmpty) ...[
-                        pw.Text('💻 Portfolio', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                        pw.Text('Portfolio', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                         pw.Text(portfolio.replaceFirst(RegExp(r'https?://(www\.)?'), ''), style: const pw.TextStyle(fontSize: 7)),
                       ],
                     ],
@@ -1367,7 +1477,7 @@ class PdfService {
                                         child: pw.Row(
                                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                                           children: [
-                                            pw.Text('• ', style: pw.TextStyle(fontSize: 8, color: primaryColor)),
+                                            pw.Text('- ', style: pw.TextStyle(fontSize: 8, color: primaryColor)),
                                             pw.Expanded(child: pw.Text(duty as String, style: const pw.TextStyle(fontSize: 8.5))),
                                           ],
                                         ),
@@ -1453,7 +1563,7 @@ class PdfService {
                           pw.SizedBox(height: 8),
                           ...certifications.map((cert) {
                             final item = cert as Map<String, dynamic>;
-                            return pw.Text('• ${item['name']} - ${item['issuer']}', style: const pw.TextStyle(fontSize: 8.5));
+                            return pw.Text('- ${item['name']} - ${item['issuer']}', style: const pw.TextStyle(fontSize: 8.5));
                           }),
                           pw.SizedBox(height: 16),
                         ],
@@ -1462,7 +1572,7 @@ class PdfService {
                         if (achievements.isNotEmpty) ...[
                           _buildModernSectionHeader('ACHIEVEMENTS', primaryColor),
                           pw.SizedBox(height: 8),
-                          ...achievements.map((ach) => pw.Text('• $ach', style: const pw.TextStyle(fontSize: 8.5))),
+                          ...achievements.map((ach) => pw.Text('- $ach', style: const pw.TextStyle(fontSize: 8.5))),
                           pw.SizedBox(height: 16),
                         ],
 
@@ -1521,11 +1631,11 @@ class PdfService {
     final references = content['references'] as String? ?? '';
 
     final name = personalInfo['fullName'] as String? ?? 'Curriculum Vitae';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final europassBlue = PdfColor.fromHex('#004494');
 
@@ -1588,7 +1698,7 @@ class PdfService {
                     pw.Text(item['role'] as String? ?? '', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5)),
                     pw.Text(item['company'] as String? ?? '', style: const pw.TextStyle(fontSize: 9)),
                     pw.SizedBox(height: 4),
-                    ...duties.map((duty) => pw.Text('• $duty', style: const pw.TextStyle(fontSize: 8.5))),
+                    ...duties.map((duty) => pw.Text('- $duty', style: const pw.TextStyle(fontSize: 8.5))),
                   ],
                 );
 
@@ -1740,12 +1850,12 @@ class PdfService {
     final achievements = content['achievements'] as List? ?? [];
     final references = content['references'] as String? ?? '';
 
-    final name = personalInfo['fullName'] as String? ?? 'Professional CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Professional CV');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final navy = PdfColor.fromHex('#1B2A4A');
     final gold = PdfColor.fromHex('#C9A84C');
@@ -1757,7 +1867,7 @@ class PdfService {
       if (location.isNotEmpty) location,
       if (linkedin.isNotEmpty) linkedin,
       if (portfolio.isNotEmpty) portfolio,
-    ].join(' · ');
+    ].join(' | ');
 
     pdf.addPage(
       pw.MultiPage(
@@ -1857,7 +1967,7 @@ class PdfService {
                             child: pw.Row(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
-                                pw.Text('► ', style: pw.TextStyle(fontSize: 7, color: gold)),
+                                pw.Text('> ', style: pw.TextStyle(fontSize: 7, color: gold)),
                                 pw.Expanded(child: pw.Text(duty as String, style: pw.TextStyle(fontSize: 9, color: darkGray))),
                               ],
                             ),
@@ -1903,7 +2013,7 @@ class PdfService {
                         if (skillsMap['technical'] != null)
                           ...(skillsMap['technical'] as List).map((s) => pw.Padding(
                                 padding: const pw.EdgeInsets.only(bottom: 3),
-                                child: pw.Text('► $s', style: pw.TextStyle(fontSize: 9, color: darkGray)),
+                                child: pw.Text('> $s', style: pw.TextStyle(fontSize: 9, color: darkGray)),
                               )),
                       ],
                     ),
@@ -1916,7 +2026,7 @@ class PdfService {
                         if (skillsMap['soft'] != null)
                           ...(skillsMap['soft'] as List).map((s) => pw.Padding(
                                 padding: const pw.EdgeInsets.only(bottom: 3),
-                                child: pw.Text('► $s', style: pw.TextStyle(fontSize: 9, color: darkGray)),
+                                child: pw.Text('> $s', style: pw.TextStyle(fontSize: 9, color: darkGray)),
                               )),
                       ],
                     ),
@@ -1952,7 +2062,7 @@ class PdfService {
               pw.SizedBox(height: 8),
               ...certifications.map((cert) {
                 final item = cert as Map<String, dynamic>;
-                return pw.Text('► ${item['name']} - ${item['issuer']}', style: pw.TextStyle(fontSize: 9, color: darkGray));
+                return pw.Text('> ${item['name']} - ${item['issuer']}', style: pw.TextStyle(fontSize: 9, color: darkGray));
               }),
               pw.SizedBox(height: 16),
             ],
@@ -1961,7 +2071,7 @@ class PdfService {
             if (achievements.isNotEmpty) ...[
               _buildExecutiveHeader('ACHIEVEMENTS', navy, gold),
               pw.SizedBox(height: 8),
-              ...achievements.map((ach) => pw.Text('► $ach', style: pw.TextStyle(fontSize: 9, color: darkGray))),
+              ...achievements.map((ach) => pw.Text('> $ach', style: pw.TextStyle(fontSize: 9, color: darkGray))),
               pw.SizedBox(height: 16),
             ],
 
@@ -2010,9 +2120,9 @@ class PdfService {
     final skillsMap = content['skills'] as Map<String, dynamic>? ?? {};
 
     final name = personalInfo['fullName'] as String? ?? 'Nepal Special CV';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
 
     final redColor = PdfColor.fromHex('#DC143C');
     final blueColor = PdfColor.fromHex('#003893');
@@ -2135,7 +2245,7 @@ class PdfService {
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9.5),
                       ),
                       pw.SizedBox(height: 4),
-                      ...duties.map((duty) => pw.Text('• $duty', style: const pw.TextStyle(fontSize: 9))),
+                      ...duties.map((duty) => pw.Text('- $duty', style: const pw.TextStyle(fontSize: 9))),
                     ],
                   ),
                 );
@@ -2152,7 +2262,7 @@ class PdfService {
                 return pw.Padding(
                   padding: const pw.EdgeInsets.only(bottom: 6),
                   child: pw.Text(
-                    '• ${item['degree']} in ${item['field']} from ${item['institution']} (${item['startDate'] ?? ''} - ${item['endDate'] ?? ''})',
+                    '- ${item['degree']} in ${item['field']} from ${item['institution']} (${item['startDate'] ?? ''} - ${item['endDate'] ?? ''})',
                     style: const pw.TextStyle(fontSize: 9.5),
                   ),
                 );
@@ -2264,21 +2374,25 @@ class PdfService {
     );
   }
 
+  
   pw.Widget _buildCleanHeader(String title) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(
-            fontSize: 11,
-            fontWeight: pw.FontWeight.bold,
-            color: PdfColor.fromHex('#1A1A2E'),
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 8, bottom: 6),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            title.toUpperCase(),
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              color: _primaryColor,
+            ),
           ),
-        ),
-        pw.SizedBox(height: 4),
-        pw.Divider(color: PdfColors.grey300, thickness: 0.8),
-      ],
+          pw.SizedBox(height: 2),
+          pw.Divider(color: _dividerGray, thickness: 0.8),
+        ],
+      ),
     );
   }
 
@@ -2306,11 +2420,11 @@ class PdfService {
       return cv.shareUrl;
     }
     final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
+    final linkedin = _str(personalInfo['linkedIn']);
     if (linkedin.isNotEmpty) {
       return linkedin;
     }
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final portfolio = _str(personalInfo['portfolio']);
     if (portfolio.isNotEmpty) {
       return portfolio;
     }
@@ -2416,12 +2530,12 @@ class PdfService {
   Future<Uint8List> generateCoverLetterPdf(CvModel cv, String text, {String? targetCompany}) async {
     final pdf = pw.Document();
     final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
-    final name = personalInfo['fullName'] as String? ?? 'Applicant';
-    final email = personalInfo['email'] as String? ?? '';
-    final phone = personalInfo['phone'] as String? ?? '';
-    final location = personalInfo['location'] as String? ?? '';
-    final linkedin = personalInfo['linkedIn'] as String? ?? '';
-    final portfolio = personalInfo['portfolio'] as String? ?? '';
+    final name = _str(personalInfo['fullName'], 'Applicant');
+    final email = _str(personalInfo['email']);
+    final phone = _str(personalInfo['phone']);
+    final location = _str(personalInfo['location']);
+    final linkedin = _str(personalInfo['linkedIn']);
+    final portfolio = _str(personalInfo['portfolio']);
 
     final templateLower = cv.template.toLowerCase().trim();
     PdfColor primaryColor = PdfColor.fromHex('#1A1A2E');
@@ -2524,5 +2638,14 @@ class PdfService {
     final file = File(path);
     await file.writeAsBytes(bytes);
     return path;
+  }
+
+  String _str(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    final s = value.toString().trim();
+    if (s.isEmpty || s == 'null' || s == 'N/A' || 
+        s == 'Not mentioned' || s == 'undefined' ||
+        s == 'None' || s == 'n/a') return fallback;
+    return s;
   }
 }
