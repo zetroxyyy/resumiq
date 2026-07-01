@@ -339,7 +339,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                           const SizedBox(width: 12),
                           const Expanded(
                             child: Text(
-                              'Enable voice input to speak your CV in English or Nepali',
+                              'Enable microphone to use voice typing',
                               style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
                             ),
                           ),
