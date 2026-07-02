@@ -19,6 +19,8 @@ class CvModel {
   final String? coverLetter;
   final String? coverLetterPdfUrl;
   final String? coverLetterDocxUrl;
+  final String? photoUrl;
+  final String? passportUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -41,6 +43,8 @@ class CvModel {
     this.coverLetter,
     this.coverLetterPdfUrl,
     this.coverLetterDocxUrl,
+    this.photoUrl,
+    this.passportUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -65,6 +69,8 @@ class CvModel {
       coverLetter: json['coverLetter'] as String?,
       coverLetterPdfUrl: json['coverLetterPdfUrl'] as String?,
       coverLetterDocxUrl: json['coverLetterDocxUrl'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+      passportUrl: json['passportUrl'] as String?,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -94,6 +100,8 @@ class CvModel {
       'coverLetter': coverLetter,
       'coverLetterPdfUrl': coverLetterPdfUrl,
       'coverLetterDocxUrl': coverLetterDocxUrl,
+      'photoUrl': photoUrl,
+      'passportUrl': passportUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -118,6 +126,10 @@ class CvModel {
     String? coverLetter,
     String? coverLetterPdfUrl,
     String? coverLetterDocxUrl,
+    String? photoUrl,
+    bool clearPhotoUrl = false,
+    String? passportUrl,
+    bool clearPassportUrl = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -140,6 +152,8 @@ class CvModel {
       coverLetter: coverLetter ?? this.coverLetter,
       coverLetterPdfUrl: coverLetterPdfUrl ?? this.coverLetterPdfUrl,
       coverLetterDocxUrl: coverLetterDocxUrl ?? this.coverLetterDocxUrl,
+      photoUrl: clearPhotoUrl ? null : (photoUrl ?? this.photoUrl),
+      passportUrl: clearPassportUrl ? null : (passportUrl ?? this.passportUrl),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:path_provider/path_provider.dart';
 
 class CloudinaryService {
   final CloudinaryPublic _cloudinary;
@@ -63,6 +66,31 @@ class CloudinaryService {
       folder: 'resumind/users/$userId/profile',
       resourceType: CloudinaryResourceType.Image,
     );
+  }
+
+  /// Upload raw bytes (e.g., processed photo or passport scan) to Cloudinary.
+  /// [folder] is the full folder path, [extension] is the file extension (e.g., 'jpg').
+  Future<String> uploadBytes({
+    required Uint8List bytes,
+    required String folder,
+    String extension = 'jpg',
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final tempFile = File('${tempDir.path}/upload_$timestamp.$extension');
+    await tempFile.writeAsBytes(bytes);
+    try {
+      return await _uploadWithRetry(
+        filePath: tempFile.path,
+        folder: folder,
+        resourceType: CloudinaryResourceType.Image,
+      );
+    } finally {
+      // Clean up temp file
+      try {
+        await tempFile.delete();
+      } catch (_) {}
+    }
   }
 
   Future<String> _uploadWithRetry({

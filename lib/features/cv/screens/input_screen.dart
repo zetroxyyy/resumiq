@@ -1,14 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/gradient_background.dart';
+import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/widgets/pulsing_mic_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/cv_provider.dart';
+import '../services/photo_service.dart';
 
 class InputScreen extends ConsumerStatefulWidget {
   const InputScreen({super.key});
@@ -26,6 +30,12 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   String _selectedFormat = 'Standard';
   String? _inlineError;
   bool _atsOptimized = false;
+
+  // Photo upload state
+  final PhotoService _photoService = PhotoService();
+  final ImagePicker _imagePicker = ImagePicker();
+  String? _photoUrl;
+  bool _isPhotoLoading = false;
 
   final List<String> _formats = [
     'Standard',
@@ -170,6 +180,163 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     super.dispose();
   }
 
+  // ─── Photo Upload Methods ────────────────────────────────────────────────────
+
+  Future<void> _pickPhoto() async {
+    final user = ref.read(authProvider);
+    if (user == null) return;
+
+    // Show gallery/camera choice
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Choose Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            if (_photoUrl != null) ...[
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  setState(() => _photoUrl = null);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await _imagePicker.pickImage(source: source, imageQuality: 90);
+    if (picked == null) return;
+
+    await _processPhoto(File(picked.path), user.uid);
+  }
+
+  Future<void> _processPhoto(File imageFile, String userId) async {
+    setState(() => _isPhotoLoading = true);
+
+    try {
+      final result = await _photoService.processAndUploadPhoto(
+        imageFile: imageFile,
+        userId: userId,
+      );
+      if (mounted) {
+        setState(() {
+          _photoUrl = result.url;
+          _isPhotoLoading = false;
+        });
+        if (!result.usedBgRemoval) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo added without background removal'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isPhotoLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Photo upload failed: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildPhotoUploadRow() {
+    return GestureDetector(
+      onTap: _isPhotoLoading ? null : _pickPhoto,
+      child: Row(
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.white10,
+                backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+                child: _photoUrl == null
+                    ? const Icon(Icons.person, size: 36, color: Colors.white38)
+                    : null,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: _isPhotoLoading
+                      ? const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                        )
+                      : const Icon(Icons.camera_alt, size: 14, color: Colors.black),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _photoUrl != null ? 'Photo added ✓' : 'Add your photo (optional)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: _photoUrl != null
+                        ? Theme.of(context).colorScheme.primary
+                        : Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Background will be removed automatically',
+                  style: TextStyle(fontSize: 12, color: Colors.white54),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   void _validateAndSubmit() {
     setState(() {
       _inlineError = null;
@@ -201,6 +368,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
           ? _jobController.text.trim()
           : null,
       atsOptimized: _atsOptimized,
+      photoUrl: _photoUrl,
     );
 
     context.go('/cv/generating');
@@ -377,7 +545,10 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Part 1: Language selection and Voice Button
+                // Photo upload row
+                _buildPhotoUploadRow(),
+                const SizedBox(height: 16),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,6 +14,32 @@ class PdfService {
   Future<Uint8List> generatePdf(CvModel cv, String templateName, {bool isPro = false}) async {
     final qrUrl = _getQrUrl(cv);
 
+    // Download profile photo bytes if present
+    pw.MemoryImage? photoImage;
+    if (cv.photoUrl != null && cv.photoUrl!.isNotEmpty) {
+      try {
+        final response = await http.get(Uri.parse(cv.photoUrl!)).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          photoImage = pw.MemoryImage(response.bodyBytes);
+        }
+      } catch (e) {
+        // Photo download failed — continue without photo
+      }
+    }
+
+    // Download passport bytes if present
+    pw.MemoryImage? passportImage;
+    if (cv.passportUrl != null && cv.passportUrl!.isNotEmpty) {
+      try {
+        final response = await http.get(Uri.parse(cv.passportUrl!)).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          passportImage = pw.MemoryImage(response.bodyBytes);
+        }
+      } catch (e) {
+        // Passport download failed — continue without passport page
+      }
+    }
+
     if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true) {
       return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
     }
@@ -20,19 +47,19 @@ class PdfService {
     final nameNormalized = templateName.toLowerCase().trim();
 
     if (nameNormalized == 'professional') {
-      return _generateProfessional(cv, isPro: isPro, qrUrl: qrUrl);
+      return _generateProfessional(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage);
     } else if (nameNormalized == 'simple') {
       return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'basic') {
       return _generateBasic(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'modern') {
-      return _generateModern(cv, isPro: isPro, qrUrl: qrUrl);
+      return _generateModern(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage);
     } else if (nameNormalized == 'europass') {
-      return _generateEuropass(cv, isPro: isPro, qrUrl: qrUrl);
+      return _generateEuropass(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage);
     } else if (nameNormalized == 'executive') {
       return _generateExecutive(cv, isPro: isPro, qrUrl: qrUrl);
     } else if (nameNormalized == 'nepal special' || nameNormalized == 'nepal-special') {
-      return _generateNepalSpecial(cv, isPro: isPro, qrUrl: qrUrl);
+      return _generateNepalSpecial(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage, passportImage: passportImage);
     } else {
       return _generateClean(cv, isPro: isPro, qrUrl: qrUrl);
     }
@@ -478,7 +505,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 2: PROFESSIONAL
   // ==========================================
-  Future<Uint8List> _generateProfessional(CvModel cv, {bool isPro = false, String? qrUrl}) async {
+  Future<Uint8List> _generateProfessional(CvModel cv, {bool isPro = false, String? qrUrl, pw.MemoryImage? photoImage}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -524,28 +551,49 @@ class PdfService {
               width: double.infinity,
               padding: const pw.EdgeInsets.all(24),
               color: PdfColor.fromHex('#6C63FF'),
-              child: pw.Column(
+              child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    name,
-                    style: pw.TextStyle(
-                      fontSize: 26,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.white,
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          name,
+                          style: pw.TextStyle(
+                            fontSize: 26,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 8),
+                        pw.Text(
+                          contactInfo,
+                          style: const pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  pw.SizedBox(height: 8),
-                  pw.Text(
-                    contactInfo,
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.white,
+                  if (photoImage != null) ...[
+                    pw.SizedBox(width: 16),
+                    pw.ClipRRect(
+                      horizontalRadius: 4,
+                      verticalRadius: 4,
+                      child: pw.Image(
+                        photoImage,
+                        width: 99.2, // 3.5cm
+                        height: 127.6, // 4.5cm
+                        fit: pw.BoxFit.cover,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
+
             // Body (Two Columns)
             pw.Padding(
               padding: const pw.EdgeInsets.all(24),
@@ -1321,7 +1369,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 5: MODERN
   // ==========================================
-  Future<Uint8List> _generateModern(CvModel cv, {bool isPro = false, String? qrUrl}) async {
+  Future<Uint8List> _generateModern(CvModel cv, {bool isPro = false, String? qrUrl, pw.MemoryImage? photoImage}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1383,6 +1431,20 @@ class PdfService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
+                      // Circular profile photo (2.5cm diameter)
+                      if (photoImage != null) ...[
+                        pw.Center(
+                          child: pw.ClipOval(
+                            child: pw.Image(
+                              photoImage,
+                              width: 70.9, // 2.5cm
+                              height: 70.9, // 2.5cm
+                              fit: pw.BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(height: 12),
+                      ],
                       // Rotated/Stacked Name at top of sidebar
                       pw.Text(
                         name,
@@ -1617,7 +1679,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 6: EUROPASS
   // ==========================================
-  Future<Uint8List> _generateEuropass(CvModel cv, {bool isPro = false, String? qrUrl}) async {
+  Future<Uint8List> _generateEuropass(CvModel cv, {bool isPro = false, String? qrUrl, pw.MemoryImage? photoImage}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -1668,14 +1730,47 @@ class PdfService {
 
             // Labeled Two-Column Layouts
 
-            // 1. Personal Information
+            // 1. Personal Information — with photo on right
             _buildEuropassHeader('Personal information'),
-            _buildEuropassRow('First name / Surname', name, europassBlue),
-            if (location.isNotEmpty) _buildEuropassRow('Address', location, europassBlue),
-            if (phone.isNotEmpty) _buildEuropassRow('Telephone', phone, europassBlue),
-            if (email.isNotEmpty) _buildEuropassRow('Email', email, europassBlue),
-            _buildEuropassRow('Nationality', 'Nepali', europassBlue),
-            if (linkedin.isNotEmpty) _buildEuropassRow('LinkedIn', linkedin, europassBlue),
+            if (photoImage != null)
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        _buildEuropassRow('First name / Surname', name, europassBlue),
+                        if (location.isNotEmpty) _buildEuropassRow('Address', location, europassBlue),
+                        if (phone.isNotEmpty) _buildEuropassRow('Telephone', phone, europassBlue),
+                        if (email.isNotEmpty) _buildEuropassRow('Email', email, europassBlue),
+                        _buildEuropassRow('Nationality', 'Nepali', europassBlue),
+                        if (linkedin.isNotEmpty) _buildEuropassRow('LinkedIn', linkedin, europassBlue),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.ClipRRect(
+                    horizontalRadius: 2,
+                    verticalRadius: 2,
+                    child: pw.Image(
+                      photoImage,
+                      width: 99.2, // 3.5cm
+                      height: 127.6, // 4.5cm
+                      fit: pw.BoxFit.cover,
+                    ),
+                  ),
+                ],
+              )
+            else ...[
+              _buildEuropassRow('First name / Surname', name, europassBlue),
+              if (location.isNotEmpty) _buildEuropassRow('Address', location, europassBlue),
+              if (phone.isNotEmpty) _buildEuropassRow('Telephone', phone, europassBlue),
+              if (email.isNotEmpty) _buildEuropassRow('Email', email, europassBlue),
+              _buildEuropassRow('Nationality', 'Nepali', europassBlue),
+              if (linkedin.isNotEmpty) _buildEuropassRow('LinkedIn', linkedin, europassBlue),
+            ],
+
             if (portfolio.isNotEmpty) _buildEuropassRow('Portfolio', portfolio, europassBlue),
             pw.SizedBox(height: 16),
 
@@ -2110,7 +2205,7 @@ class PdfService {
   // ==========================================
   // TEMPLATE 8: NEPAL SPECIAL
   // ==========================================
-  Future<Uint8List> _generateNepalSpecial(CvModel cv, {bool isPro = false, String? qrUrl}) async {
+  Future<Uint8List> _generateNepalSpecial(CvModel cv, {bool isPro = false, String? qrUrl, pw.MemoryImage? photoImage, pw.MemoryImage? passportImage}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
@@ -2185,20 +2280,32 @@ class PdfService {
                     ],
                   ),
                 ),
-                // Passport Photo Box
-                pw.Container(
-                  width: 99.2, // ~3.5cm (1cm = 28.35pt)
-                  height: 127.5, // ~4.5cm
-                  decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey700, width: 1, style: pw.BorderStyle.dashed),
+                // Passport Photo Box (real or placeholder)
+                if (photoImage != null)
+                  pw.ClipRRect(
+                    horizontalRadius: 2,
+                    verticalRadius: 2,
+                    child: pw.Image(
+                      photoImage,
+                      width: 99.2,  // 3.5cm
+                      height: 127.5, // 4.5cm
+                      fit: pw.BoxFit.cover,
+                    ),
+                  )
+                else
+                  pw.Container(
+                    width: 99.2, // ~3.5cm (1cm = 28.35pt)
+                    height: 127.5, // ~4.5cm
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.grey700, width: 1, style: pw.BorderStyle.dashed),
+                    ),
+                    alignment: pw.Alignment.center,
+                    child: pw.Text(
+                      'Passport Size\nPhoto',
+                      style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+                      textAlign: pw.TextAlign.center,
+                    ),
                   ),
-                  alignment: pw.Alignment.center,
-                  child: pw.Text(
-                    'Passport Size\nPhoto',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
-                    textAlign: pw.TextAlign.center,
-                  ),
-                ),
               ],
             ),
             pw.SizedBox(height: 16),
@@ -2318,8 +2425,57 @@ class PdfService {
       ),
     );
 
+    // Passport copy page — added after main CV content
+    if (passportImage != null) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(42),
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+              children: [
+                pw.Center(
+                  child: pw.Text(
+                    'PASSPORT COPY',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromHex('#003893'),
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 6),
+                pw.Container(
+                  height: 1.5,
+                  color: PdfColor.fromHex('#DC143C'),
+                ),
+                pw.SizedBox(height: 24),
+                pw.Center(
+                  child: pw.Image(
+                    passportImage,
+                    width: 400,
+                    height: 280,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Center(
+                  child: pw.Text(
+                    'Passport of ${cv.generatedContent['personalInfo']?['fullName'] ?? ''}',
+                    style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    }
+
     return pdf.save();
   }
+
 
   pw.Widget _buildNepalHeader(String title, PdfColor color) {
     return pw.Column(

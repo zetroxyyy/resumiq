@@ -12,12 +12,14 @@ class CvInputState {
   final String format;
   final String? jobDescription;
   final bool atsOptimized;
+  final String? photoUrl;
 
   const CvInputState({
     required this.rawInput,
     required this.format,
     this.jobDescription,
     this.atsOptimized = false,
+    this.photoUrl,
   });
 }
 
@@ -102,6 +104,8 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'version': 1,
+        if (inputData.photoUrl != null && inputData.photoUrl!.isNotEmpty)
+          'photoUrl': inputData.photoUrl,
       });
 
       // Try to increment generationsThisMonth on the user document

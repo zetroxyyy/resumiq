@@ -439,7 +439,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                               _buildBottomAction(
                                 icon: Icons.edit_note,
                                 label: 'Edit',
-                                onTap: () => _showEditBottomSheet(cv, user.uid),
+                                onTap: () => context.push('/cv/editor/${cv.id}'),
                               ),
                               _buildBottomActionWithProBadge(
                                 icon: Icons.share,
