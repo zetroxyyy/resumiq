@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 class AiService {
   static const String _baseUrl =
       'https://api.groq.com/openai/v1/chat/completions';
-  static const String _model = 'llama-3.3-70b-versatile';
+  static const String _model = 'llama-3.1-70b-versatile';
 
   String _apiKey = '';
 
@@ -91,7 +91,9 @@ class AiService {
         ? 'IMPORTANT: ATS-optimized CV required. Plain text only, standard section names, no special characters except hyphens and bullets. Set atsOptimized: true in output.'
         : '';
 
-    final prompt = '''
+    final prompt = '''Take a deep breath and work through this step by step.
+Quality matters more than speed. Write every bullet point as if the candidate's job offer depends on it.
+
 You are a senior professional CV writer with 20 years of experience 
 helping candidates land jobs at top companies. You have written 
 thousands of CVs across all industries. Your CVs are known for 
@@ -128,7 +130,24 @@ STRICT RULES YOU MUST FOLLOW:
 10. Score honestly. A CV with missing work experience should score 
     50-60. A complete CV with good detail should score 75-85. 
     A perfect CV with quantified achievements scores 90+.
-11. The "atsOptimized" field in the JSON response must be explicitly 
+11. The work experience section is the most important part. 
+    Every responsibility must show IMPACT, not just activity.
+    BAD: 'Developed mobile applications'
+    GOOD: 'Delivered 4 Flutter mobile applications for clients 
+    across fintech and e-commerce sectors, maintaining 99.2% 
+    crash-free session rate'
+12. The summary must mention the person by name in the first 
+    sentence and end with what they are looking for career-wise.
+13. If the person provides very little information, ask yourself:
+    What would a great candidate in this role have achieved? 
+    Use realistic, believable estimates. Never make up companies 
+    or schools — only embellish achievements and responsibilities.
+14. Every CV must have at least 3 bullet points per job, 
+    minimum 2 skills categories, and a complete education entry.
+15. Do not add sections that have zero data. If there are no 
+    projects mentioned, leave the projects array empty — 
+    do not invent projects.
+16. The "atsOptimized" field in the JSON response must be explicitly 
     set to true if ATS-optimized, and false otherwise.
 
 CV Type requested: $cvType
@@ -207,7 +226,7 @@ Required JSON structure:
 }
 ''';
 
-    final text = await _callGroq(prompt, temperature: 0.4);
+    final text = await _callGroq(prompt, temperature: 0.2, maxTokens: 6000);
 
     String cleaned = text
         .replaceAll(RegExp(r'```json\s*'), '')

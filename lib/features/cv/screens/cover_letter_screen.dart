@@ -16,7 +16,6 @@ import '../../auth/providers/auth_provider.dart';
 import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
-import '../services/docx_service.dart';
 import '../services/ai_service.dart';
 import '../services/pdf_service.dart';
 
@@ -40,7 +39,6 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
 
   final AiService _gemini = AiService();
   final PdfService _pdfService = const PdfService();
-  final DocxService _docxService = const DocxService();
   final CloudinaryService _cloudinary = CloudinaryService();
 
   final SpeechToText _speech = SpeechToText();
@@ -259,71 +257,7 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
     }
   }
 
-  Future<void> _handleExportDocx(CvModel cv, String userId) async {
-    setState(() {
-      _isLoading = true;
-      _loadingMessage = 'Exporting Word DOCX...';
-    });
 
-    try {
-      final docxBytes = _docxService.generateCoverLetterDocx(
-        cv,
-        _coverLetterTextController.text,
-        targetCompany: _companyController.text.trim().isNotEmpty ? _companyController.text.trim() : null,
-      );
-
-      final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
-      final cleanName = fullName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filename = '${cleanName}_CoverLetter_$timestamp.docx';
-
-      final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/$filename';
-      final file = File(filePath);
-      await file.writeAsBytes(docxBytes);
-
-      // Upload to Cloudinary
-      final docxUrl = await _cloudinary.uploadCoverLetterDocx(filePath: filePath, userId: userId);
-
-      // Update Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('cvs')
-          .doc(cv.id)
-          .update({
-        'coverLetter': _coverLetterTextController.text,
-        'coverLetterDocxUrl': docxUrl,
-        'updatedAt': Timestamp.now(),
-      });
-
-      setState(() => _isLoading = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Word Document exported!'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () {
-                Share.shareXFiles([XFile(filePath)], text: 'My Cover Letter Word Doc');
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('DOCX generation/upload failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
 
   void _handleShare() {
     final text = _coverLetterTextController.text;
@@ -401,11 +335,7 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
                           label: 'PDF',
                           onTap: () => _handleDownloadPdf(cv, user.uid),
                         ),
-                        _buildActionBarButton(
-                          icon: Icons.description,
-                          label: 'Word',
-                          onTap: () => _handleExportDocx(cv, user.uid),
-                        ),
+
                         _buildActionBarButton(
                           icon: Icons.share,
                           label: 'Share',

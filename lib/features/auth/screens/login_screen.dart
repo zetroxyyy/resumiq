@@ -50,18 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const Spacer(),
                   // Centered Upper Half: Logo + Brand
                   Container(
-                    width: 100,
-                    height: 100,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.secondary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       boxShadow: [
                         BoxShadow(
                           color: theme.colorScheme.primary.withOpacity(0.4),
@@ -70,15 +59,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ],
                     ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'R',
-                      style: TextStyle(
-                        fontSize: 54,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        fontFamily: 'Poppins',
-                      ),
+                    child: Image.asset(
+                      'assets/icons/app_icon.png',
+                      width: 100,
+                      height: 100,
                     ),
                   ),
                   const SizedBox(height: 24),

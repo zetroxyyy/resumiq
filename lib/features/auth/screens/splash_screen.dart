@@ -68,18 +68,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   opacity: _opacity,
                   duration: const Duration(milliseconds: 1000),
                   child: Container(
-                    width: 120,
-                    height: 120,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.secondary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
                       boxShadow: [
                         BoxShadow(
                           color: theme.colorScheme.primary.withOpacity(0.4),
@@ -88,15 +77,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         ),
                       ],
                     ),
-                    alignment: Alignment.center,
-                    child: const Text(
-                      'R',
-                      style: TextStyle(
-                        fontSize: 64,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        fontFamily: 'Poppins',
-                      ),
+                    child: Image.asset(
+                      'assets/icons/app_icon.png',
+                      width: 120,
+                      height: 120,
                     ),
                   ),
                 ),

@@ -20,7 +20,6 @@ import '../models/version_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
-import '../services/docx_service.dart';
 import '../services/ai_service.dart';
 
 class PreviewScreen extends ConsumerStatefulWidget {
@@ -39,10 +38,8 @@ class PreviewScreen extends ConsumerStatefulWidget {
 
 class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   final PdfService _pdfService = const PdfService();
-  final DocxService _docxService = const DocxService();
   final CloudinaryService _cloudinary = CloudinaryService();
   bool _isDownloading = false;
-  bool _isDocxLoading = false;
   bool _isAiSuggestionsExpanded = false;
 
   void _showRenameDialog(String currentTitle, String userId) {
@@ -129,58 +126,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     }
   }
 
-  Future<void> _handleDocxExport(CvModel cv, String userId) async {
-    setState(() => _isDocxLoading = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final docxBytes = _docxService.generateDocx(cv);
-      final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
-      final cleanName = fullName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final filename = '${cleanName}_CV_$timestamp.docx';
-      
-      final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/$filename';
-      final file = File(filePath);
-      await file.writeAsBytes(docxBytes);
-      
-      final docxUrl = await _cloudinary.uploadDocx(filePath: filePath, userId: userId);
-      
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('cvs')
-          .doc(cv.id)
-          .update({'docxUrl': docxUrl});
-      
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Word document saved and uploaded!'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () {
-                Share.shareXFiles([XFile(filePath)], text: '$fullName Resume (DOCX)');
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Failed to export Word document: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isDocxLoading = false);
-      }
-    }
-  }
+
 
   void _showUpgradePrompt(String feature) {
     showModalBottomSheet(
@@ -205,8 +151,8 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                Text(
-                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, DOCX export, and unlimited generations.",
+                 Text(
+                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, premium styling, and unlimited generations.",
                   style: const TextStyle(color: Colors.white70, height: 1.5),
                   textAlign: TextAlign.center,
                 ),
@@ -386,77 +332,38 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                       color: Colors.black45,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          // Left side action buttons
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildBottomAction(
-                                icon: Icons.picture_as_pdf,
-                                label: 'PDF',
-                                isLoading: _isDownloading,
-                                onTap: () => _handleDownloadAndUpload(cv, user.uid, isPro: user.isPro),
-                              ),
-                              _buildBottomActionWithProBadge(
-                                icon: Icons.description,
-                                label: 'Word',
-                                isLoading: _isDocxLoading,
-                                isProOnly: true,
-                                isUserPro: user.isPro,
-                                onTap: () {
-                                  if (user.isPro) {
-                                    _handleDocxExport(cv, user.uid);
-                                  } else {
-                                    _showUpgradePrompt('Word DOCX Export');
-                                  }
-                                },
-                              ),
-                              _buildBottomActionWithProBadge(
-                                icon: Icons.mail_outline,
-                                label: 'Cover Letter',
-                                isProOnly: true,
-                                isUserPro: user.isPro,
-                                onTap: () {
-                                  if (user.isPro) {
-                                    context.push('/cv/cover-letter/${cv.id}');
-                                  } else {
-                                    _showUpgradePrompt('Cover Letter Generator');
-                                  }
-                                },
-                              ),
-                            ],
+                          _buildBottomAction(
+                            icon: Icons.picture_as_pdf,
+                            label: 'PDF',
+                            isLoading: _isDownloading,
+                            onTap: () => _handleDownloadAndUpload(cv, user.uid, isPro: user.isPro),
                           ),
-                          // Right side action buttons
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildBottomAction(
-                                icon: Icons.mic,
-                                label: 'Voice Edit',
-                                onTap: () => _showVoiceEditBottomSheet(cv, user.uid),
-                              ),
-                              _buildBottomAction(
-                                icon: Icons.edit_note,
-                                label: 'Edit',
-                                onTap: () => context.push('/cv/editor/${cv.id}'),
-                              ),
-                              _buildBottomActionWithProBadge(
-                                icon: Icons.share,
-                                label: 'Share',
-                                isProOnly: true,
-                                isUserPro: user.isPro,
-                                onTap: () {
-                                  if (user.isPro) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Sharing enabled for PRO members!')),
-                                    );
-                                  } else {
-                                    _showUpgradePrompt('Resume Link Sharing');
-                                  }
-                                },
-                              ),
-                            ],
+                          _buildBottomAction(
+                            icon: Icons.mic,
+                            label: 'Voice Edit',
+                            onTap: () => _showVoiceEditBottomSheet(cv, user.uid),
+                          ),
+                          _buildBottomAction(
+                            icon: Icons.edit_note,
+                            label: 'Edit',
+                            onTap: () => context.push('/cv/editor/${cv.id}'),
+                          ),
+                          _buildBottomActionWithProBadge(
+                            icon: Icons.share,
+                            label: 'Share',
+                            isProOnly: true,
+                            isUserPro: user.isPro,
+                            onTap: () {
+                              if (user.isPro) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Sharing enabled for PRO members!')),
+                                );
+                              } else {
+                                _showUpgradePrompt('Resume Link Sharing');
+                              }
+                            },
                           ),
                         ],
                       ),

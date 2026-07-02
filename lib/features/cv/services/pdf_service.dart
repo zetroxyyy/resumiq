@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -11,34 +12,34 @@ import '../models/cv_model.dart';
 class PdfService {
   const PdfService();
 
+  Future<Uint8List?> _downloadPhoto(String? photoUrl) async {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    try {
+      final response = await http.get(
+        Uri.parse(photoUrl)
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) return response.bodyBytes;
+      debugPrint('Photo download failed: ${response.statusCode}');
+      return null;
+    } catch (e) {
+      debugPrint('Photo download error: $e');
+      return null;
+    }
+  }
+
   Future<Uint8List> generatePdf(CvModel cv, String templateName, {bool isPro = false}) async {
     final qrUrl = _getQrUrl(cv);
 
-    // Download profile photo bytes if present
-    pw.MemoryImage? photoImage;
-    if (cv.photoUrl != null && cv.photoUrl!.isNotEmpty) {
-      try {
-        final response = await http.get(Uri.parse(cv.photoUrl!)).timeout(const Duration(seconds: 15));
-        if (response.statusCode == 200) {
-          photoImage = pw.MemoryImage(response.bodyBytes);
-        }
-      } catch (e) {
-        // Photo download failed — continue without photo
-      }
-    }
+    final Uint8List? photoBytes = await _downloadPhoto(cv.photoUrl);
+    final pw.MemoryImage? photoImage = photoBytes != null 
+      ? pw.MemoryImage(photoBytes) 
+      : null;
 
-    // Download passport bytes if present
-    pw.MemoryImage? passportImage;
-    if (cv.passportUrl != null && cv.passportUrl!.isNotEmpty) {
-      try {
-        final response = await http.get(Uri.parse(cv.passportUrl!)).timeout(const Duration(seconds: 15));
-        if (response.statusCode == 200) {
-          passportImage = pw.MemoryImage(response.bodyBytes);
-        }
-      } catch (e) {
-        // Passport download failed — continue without passport page
-      }
-    }
+    final Uint8List? passportBytes = await _downloadPhoto(cv.passportUrl);
+    final pw.MemoryImage? passportImage = passportBytes != null
+      ? pw.MemoryImage(passportBytes)
+      : null;
+
 
     if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true) {
       return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
@@ -579,16 +580,7 @@ class PdfService {
                   ),
                   if (photoImage != null) ...[
                     pw.SizedBox(width: 16),
-                    pw.ClipRRect(
-                      horizontalRadius: 4,
-                      verticalRadius: 4,
-                      child: pw.Image(
-                        photoImage,
-                        width: 99.2, // 3.5cm
-                        height: 127.6, // 4.5cm
-                        fit: pw.BoxFit.cover,
-                      ),
-                    ),
+                    pw.Image(photoImage, width: 99, height: 127),
                   ],
                 ],
               ),
@@ -1750,15 +1742,11 @@ class PdfService {
                     ),
                   ),
                   pw.SizedBox(width: 16),
-                  pw.ClipRRect(
-                    horizontalRadius: 2,
-                    verticalRadius: 2,
-                    child: pw.Image(
-                      photoImage,
-                      width: 99.2, // 3.5cm
-                      height: 127.6, // 4.5cm
-                      fit: pw.BoxFit.cover,
-                    ),
+                  pw.Image(
+                    photoImage,
+                    width: 99,
+                    height: 127,
+                    fit: pw.BoxFit.cover,
                   ),
                 ],
               )
@@ -2282,26 +2270,22 @@ class PdfService {
                 ),
                 // Passport Photo Box (real or placeholder)
                 if (photoImage != null)
-                  pw.ClipRRect(
-                    horizontalRadius: 2,
-                    verticalRadius: 2,
-                    child: pw.Image(
-                      photoImage,
-                      width: 99.2,  // 3.5cm
-                      height: 127.5, // 4.5cm
-                      fit: pw.BoxFit.cover,
-                    ),
+                  pw.Image(
+                    photoImage,
+                    width: 99,
+                    height: 127,
+                    fit: pw.BoxFit.cover,
                   )
                 else
                   pw.Container(
-                    width: 99.2, // ~3.5cm (1cm = 28.35pt)
-                    height: 127.5, // ~4.5cm
+                    width: 99,
+                    height: 127,
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(color: PdfColors.grey700, width: 1, style: pw.BorderStyle.dashed),
                     ),
                     alignment: pw.Alignment.center,
                     child: pw.Text(
-                      'Passport Size\nPhoto',
+                      'Photo',
                       style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
                       textAlign: pw.TextAlign.center,
                     ),

@@ -447,7 +447,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, DOCX export, and unlimited generations.",
+                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, premium styling, and unlimited generations.",
                   style: const TextStyle(color: Colors.white70, height: 1.5),
                   textAlign: TextAlign.center,
                 ),

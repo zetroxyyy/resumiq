@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img;
+import 'package:image/image.dart' as image_lib;
 import 'cloudinary_service.dart';
 
 class PhotoService {
@@ -10,7 +10,7 @@ class PhotoService {
 
   // ─── Remote Config Key ──────────────────────────────────────────────────────
 
-  Future<String> fetchRemoveBgKey() async {
+  Future<String> _fetchRemoveBgKey() async {
     try {
       final rc = FirebaseRemoteConfig.instance;
       await rc.setConfigSettings(RemoteConfigSettings(
@@ -28,38 +28,55 @@ class PhotoService {
 
   // ─── Background Removal via remove.bg API ───────────────────────────────────
 
-  /// Calls remove.bg API and returns white-background PNG bytes.
-  /// Throws if the API call completely fails (not quota issue).
   Future<Uint8List> removeBackground(File imageFile) async {
-    final apiKey = await fetchRemoveBgKey();
-    if (apiKey.isEmpty) {
-      throw Exception('remove.bg API key not configured');
-    }
-
-    final uri = Uri.parse('https://api.remove.bg/v1.0/removebg');
-    final request = http.MultipartRequest('POST', uri)
-      ..headers['X-Api-Key'] = apiKey
-      ..fields['size'] = 'auto'
-      ..files.add(await http.MultipartFile.fromPath('image_file', imageFile.path));
-
-    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+    final apiKey = await _fetchRemoveBgKey();
+    
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://api.remove.bg/v1.0/removebg'),
+    );
+    
+    request.headers['X-Api-Key'] = apiKey;
+    request.fields['size'] = 'auto';
+    request.files.add(await http.MultipartFile.fromPath(
+      'image_file',
+      imageFile.path,
+    ));
+    
+    final streamedResponse = await request.send()
+      .timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamedResponse);
-
+    
+    debugPrint('remove.bg status: ${response.statusCode}');
+    
     if (response.statusCode == 200) {
-      // response.bodyBytes is the transparent PNG
-      return addWhiteBackground(response.bodyBytes);
+      return response.bodyBytes; // transparent PNG
     } else {
-      debugPrint('remove.bg error ${response.statusCode}: ${response.body}');
-      throw Exception('remove.bg API error ${response.statusCode}: ${response.body}');
+      debugPrint('remove.bg error: ${response.body}');
+      throw Exception('Background removal failed: ${response.statusCode}');
     }
   }
 
   // ─── White Background Compositing ───────────────────────────────────────────
 
-  /// Takes a transparent PNG (Uint8List) and composites it onto a white canvas.
-  /// Returns JPEG/PNG bytes suitable for use as a profile photo.
   Future<Uint8List> addWhiteBackground(Uint8List transparentPng) async {
-    return await compute(_addWhiteBackgroundIsolate, transparentPng);
+    final image_lib.Image? original = 
+      image_lib.decodeImage(transparentPng);
+    if (original == null) throw Exception('Could not decode image');
+    
+    // Create white background canvas same size
+    final whiteBg = image_lib.Image(
+      width: original.width,
+      height: original.height,
+    );
+    
+    // Fill with white
+    image_lib.fill(whiteBg, color: image_lib.ColorRgb8(255, 255, 255));
+    
+    // Composite original over white background
+    image_lib.compositeImage(whiteBg, original);
+    
+    return Uint8List.fromList(image_lib.encodePng(whiteBg));
   }
 
   // ─── Cloudinary Upload ───────────────────────────────────────────────────────
@@ -93,8 +110,9 @@ class PhotoService {
   }) async {
     try {
       // Try remove.bg
-      final processedBytes = await removeBackground(imageFile);
-      final url = await uploadPhoto(processedBytes, userId);
+      final transparentBytes = await removeBackground(imageFile);
+      final whiteBytes = await addWhiteBackground(transparentBytes);
+      final url = await uploadPhoto(whiteBytes, userId);
       return PhotoUploadResult(url: url, usedBgRemoval: true);
     } catch (bgError) {
       debugPrint('PhotoService: BG removal failed ($bgError), uploading original');
@@ -115,31 +133,6 @@ class PhotoService {
       }
     }
   }
-}
-
-// ─── Isolate Helper (runs in separate isolate via compute) ────────────────────
-
-Uint8List _addWhiteBackgroundIsolate(Uint8List transparentPng) {
-  // Decode the transparent image
-  final transparentImage = img.decodeImage(transparentPng);
-  if (transparentImage == null) {
-    throw Exception('Failed to decode transparent image');
-  }
-
-  // Create a white canvas of the same size
-  final whiteImage = img.Image(
-    width: transparentImage.width,
-    height: transparentImage.height,
-  );
-
-  // Fill with white
-  img.fill(whiteImage, color: img.ColorRgba8(255, 255, 255, 255));
-
-  // Composite the transparent image on top
-  img.compositeImage(whiteImage, transparentImage);
-
-  // Encode to JPEG (smaller, no transparency needed)
-  return Uint8List.fromList(img.encodeJpg(whiteImage, quality: 90));
 }
 
 // ─── Result Model ────────────────────────────────────────────────────────────
