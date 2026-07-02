@@ -14,10 +14,12 @@ class PdfService {
 
   Future<Uint8List?> _downloadPhoto(String? photoUrl) async {
     if (photoUrl == null || photoUrl.isEmpty) return null;
+    debugPrint('Downloading photo from: $photoUrl');
     try {
       final response = await http.get(
         Uri.parse(photoUrl)
       ).timeout(const Duration(seconds: 10));
+      debugPrint('Photo download: ${response.statusCode}, bytes: ${response.bodyBytes.length}');
       if (response.statusCode == 200) return response.bodyBytes;
       debugPrint('Photo download failed: ${response.statusCode}');
       return null;
@@ -139,10 +141,7 @@ class PdfService {
                   _buildQrCode(qrUrl)
                 else
                   pw.SizedBox(),
-                pw.Text(
-                  'Page ${context.pageNumber} of ${context.pagesCount}',
-                  style: const pw.TextStyle(fontSize: 8, color: _textGray),
-                ),
+                pw.SizedBox(),
               ],
             ),
           );

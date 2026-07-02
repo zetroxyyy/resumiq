@@ -505,7 +505,28 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
           if (mounted) _loadFromCv(cv);
         });
 
-        final isNepalTemplate = cv.template.toLowerCase().contains('nepal');
+        final nepalTemplates = [
+          'Nepal-Saudi',
+          'Nepal-Qatar', 
+          'Nepal-Malaysia',
+          'Nepal-Japan',
+          'Nepal-South Korea',
+          'Nepal Special',
+          'nepal-saudi',
+          'nepal-qatar',
+          'nepal-malaysia', 
+          'nepal-japan',
+          'nepal-south-korea',
+          'nepalspecial',
+        ];
+
+        final bool showPassportUpload = nepalTemplates.any(
+          (t) => cv.template.toLowerCase().contains(
+            t.toLowerCase().replaceAll('-', '').replaceAll(' ', '')
+          )
+        );
+
+        debugPrint('CV template: "${cv.template}", showPassport: $showPassportUpload');
 
         return LoadingOverlay(
           isLoading: _isSaving,
@@ -537,6 +558,11 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                 // ─── Profile Photo Card ───────────────────────────────────────
                 _buildPhotoCard(theme),
                 const SizedBox(height: 12),
+
+                if (showPassportUpload) ...[
+                  _buildPassportCard(theme),
+                  const SizedBox(height: 12),
+                ],
 
                 // ─── Personal Info ─────────────────────────────────────────────
                 _buildSectionCard(
@@ -747,11 +773,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // ─── Passport Card (Nepal templates only) ──────────────────────
-                if (isNepalTemplate) ...[
-                  _buildPassportCard(theme),
-                  const SizedBox(height: 12),
-                ],
+
 
                 const SizedBox(height: 32),
               ],
@@ -871,7 +893,10 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
 
   Widget _buildPassportCard(ThemeData theme) {
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Colors.orange, width: 1.5),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -879,22 +904,21 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.document_scanner_outlined, color: theme.colorScheme.primary),
+                const Icon(Icons.assignment_outlined, color: Colors.orange),
                 const SizedBox(width: 8),
                 Text(
                   'Passport Copy',
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             const Text(
-              'Upload passport document (optional)',
+              'Required for foreign work visa applications',
               style: TextStyle(fontSize: 13, color: Colors.white70),
-            ),
-            const Text(
-              'Will be added as the last page of your CV PDF',
-              style: TextStyle(fontSize: 11, color: Colors.white38),
             ),
             const SizedBox(height: 12),
             if (_passportUrl != null) ...[
@@ -907,16 +931,14 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                   errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported),
                 ),
               ),
-              const SizedBox(height: 8),
-            ],
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _isPhotoLoading ? null : () => _pickPhoto(isPassport: true),
-                  icon: const Icon(Icons.upload_file, size: 16),
-                  label: Text(_passportUrl != null ? 'Replace Passport' : 'Upload Passport Photo'),
-                ),
-                if (_passportUrl != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _isPhotoLoading ? null : () => _pickPhoto(isPassport: true),
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Change'),
+                  ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
                     onPressed: () => setState(() => _passportUrl = null),
@@ -927,8 +949,17 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                     ),
                   ),
                 ],
-              ],
-            ),
+              ),
+            ] else ...[
+              OutlinedButton.icon(
+                onPressed: _isPhotoLoading ? null : () => _pickPhoto(isPassport: true),
+                icon: const Icon(Icons.upload_file, size: 16, color: Colors.orange),
+                label: const Text('Upload Passport Document', style: TextStyle(color: Colors.orange)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.orange),
+                ),
+              ),
+            ],
           ],
         ),
       ),

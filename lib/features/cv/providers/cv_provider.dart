@@ -88,24 +88,47 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
 
       final scoreFeedbackList = List<String>.from(generatedContent['scoreFeedback'] as List? ?? []);
 
+      final photoUrl = inputData.photoUrl;
+      debugPrint('Photo URL when saving CV: ${photoUrl}');
+
+      final cv = CvModel(
+        id: '',
+        userId: user.uid,
+        title: cvTitle,
+        rawInput: inputData.rawInput,
+        jobDescription: inputData.jobDescription,
+        generatedContent: generatedContent,
+        template: 'clean',
+        cvType: inputData.format,
+        atsOptimized: inputData.atsOptimized,
+        score: score,
+        scoreFeedback: scoreFeedbackList,
+        version: 1,
+        photoUrl: photoUrl,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      debugPrint('Saving CV with photoUrl: ${cv.photoUrl}');
+
       // Persist to Firestore
       final cvRef = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cvs')
           .add({
-        'title': cvTitle,
-        'generatedContent': generatedContent,
-        'template': 'clean',
-        'cvType': inputData.format,
-        'atsOptimized': inputData.atsOptimized,
-        'score': score,
-        'scoreFeedback': scoreFeedbackList,
+        'title': cv.title,
+        'generatedContent': cv.generatedContent,
+        'template': cv.template,
+        'cvType': cv.cvType,
+        'atsOptimized': cv.atsOptimized,
+        'score': cv.score,
+        'scoreFeedback': cv.scoreFeedback,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'version': 1,
-        if (inputData.photoUrl != null && inputData.photoUrl!.isNotEmpty)
-          'photoUrl': inputData.photoUrl,
+        'version': cv.version,
+        if (cv.photoUrl != null && cv.photoUrl!.isNotEmpty)
+          'photoUrl': cv.photoUrl,
       });
 
       // Try to increment generationsThisMonth on the user document
