@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 class AiService {
   static const String _baseUrl =
       'https://api.groq.com/openai/v1/chat/completions';
-  static const String _model = 'llama-3.1-70b-versatile';
+  static const String _model = 'llama-3.3-70b-versatile';
 
   String _apiKey = '';
 
