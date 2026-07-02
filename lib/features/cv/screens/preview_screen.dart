@@ -87,6 +87,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     setState(() => _isDownloading = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
+      debugPrint('Generating PDF with photoUrl: ${cv.photoUrl}');
       final pdfBytes = await _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: isPro);
       final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
       final path = await _pdfService.savePdfToDevice(pdfBytes, fullName);
@@ -249,7 +250,10 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   children: [
                     Expanded(
                       child: PdfPreview(
-                        build: (format) => _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: user.isPro),
+                        build: (format) {
+                          debugPrint('Generating PDF with photoUrl: ${cv.photoUrl}');
+                          return _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: user.isPro);
+                        },
                         useActions: false,
                         canChangePageFormat: false,
                         loadingWidget: const Center(child: CircularProgressIndicator()),
@@ -457,19 +461,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     );
   }
 
-  void _showEditBottomSheet(dynamic cv, String userId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return _EditCvBottomSheet(
-          cv: cv,
-          userId: userId,
-        );
-      },
-    );
-  }
 
   void _showVoiceEditBottomSheet(CvModel cv, String userId) {
     showModalBottomSheet(
