@@ -12,7 +12,7 @@ class ResumindApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'Resumind',
+      title: 'Resumiq',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: AppTheme.lightTheme,

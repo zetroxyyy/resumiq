@@ -789,7 +789,7 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
         return AlertDialog(
           title: const Text('Microphone Permission Required'),
           content: const Text(
-            'Resumind needs access to your microphone to enable voice editing. Please enable it in the app settings.',
+            'Resumiq needs access to your microphone to enable voice editing. Please enable it in the app settings.',
           ),
           actions: [
             TextButton(

@@ -108,7 +108,7 @@ class _TemplateSelectionScreenState extends ConsumerState<TemplateSelectionScree
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  "Upgrade to Resumind Pro to unlock Europass, Professional, Modern, and specialized country layouts that double your hiring chances.",
+                  "Upgrade to Resumiq Pro to unlock Europass, Professional, Modern, and specialized country layouts that double your hiring chances.",
                   style: TextStyle(color: Colors.white70, height: 1.5),
                   textAlign: TextAlign.center,
                 ),

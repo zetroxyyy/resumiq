@@ -46,7 +46,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                     colors: [Colors.purpleAccent, Colors.blueAccent],
                   ).createShader(bounds),
                   child: Text(
-                    'Unlock Resumind Pro ⚡',
+                    'Unlock Resumiq Pro ⚡',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
