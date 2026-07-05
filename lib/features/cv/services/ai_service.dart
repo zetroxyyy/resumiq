@@ -220,7 +220,8 @@ Required JSON structure:
 }
 ''';
 
-    final text = await _callGroq(prompt, temperature: 0.2, maxTokens: 6000);
+    final rawText = await _callGroq(prompt, temperature: 0.2, maxTokens: 6000);
+    final text = _sanitizeAiText(rawText);
 
     String cleaned = text
         .replaceAll(RegExp(r'```json\s*'), '')
@@ -257,7 +258,8 @@ Current CV: ${jsonEncode(currentCvData)}
 Return ONLY valid JSON with the same structure. No markdown, no explanation.
 ''';
 
-    final text = await _callGroq(prompt, temperature: 0.3);
+    final rawText = await _callGroq(prompt, temperature: 0.3);
+    final text = _sanitizeAiText(rawText);
 
     String cleaned = text
         .replaceAll(RegExp(r'```json\s*'), '')
@@ -273,5 +275,15 @@ Return ONLY valid JSON with the same structure. No markdown, no explanation.
       }
       throw Exception('Edit failed. Please try again.');
     }
+  }
+
+  String _sanitizeAiText(String text) {
+    return text
+      .replaceAll('\u2013', '-')
+      .replaceAll('\u2014', '-')
+      .replaceAll('\u2018', "'")
+      .replaceAll('\u2019', "'")
+      .replaceAll('\u201C', '"')
+      .replaceAll('\u201D', '"');
   }
 }

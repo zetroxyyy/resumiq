@@ -523,7 +523,7 @@ class PdfService {
     final role = _str(exp['role'] ?? exp['position'] ?? exp['title']);
     final start = _str(exp['startDate']);
     final end = _str(exp['endDate']);
-    final period = [start, if (end.isNotEmpty) end].join(' – ');
+    final period = [start, if (end.isNotEmpty) end].join(' - ');
     final responsibilities = _list(exp['responsibilities']);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -546,7 +546,7 @@ class PdfService {
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('• ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
+                  pw.Text('- ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
                   pw.Expanded(
                       child: pw.Text(_str(r),
                           style: pw.TextStyle(fontSize: tier.bodySize, color: ink, height: tier.lineSpacing))),
@@ -593,7 +593,7 @@ class PdfService {
     if (skills is Map) {
       final rows = <pw.Widget>[];
       skills.forEach((key, val) {
-        final items = val is List ? val.map(_str).join(' • ') : _str(val);
+        final items = val is List ? val.map(_str).join(', ') : _str(val);
         if (items.isEmpty) return;
         rows.add(pw.Padding(
           padding: const pw.EdgeInsets.only(bottom: 4),
@@ -705,7 +705,7 @@ class PdfService {
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('• ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
+          pw.Text('- ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -784,23 +784,81 @@ class PdfService {
 
 
 
+  String _sanitizeForPdf(String input) {
+    if (input.isEmpty) return input;
+    
+    String result = input
+      .replaceAll('\u2013', '-')   // en dash
+      .replaceAll('\u2014', '-')   // em dash
+      .replaceAll('\u2022', '-')   // bullet
+      .replaceAll('\u00B7', '-')   // middle dot
+      .replaceAll('\u2192', 'to') // right arrow
+      .replaceAll('\u2018', "'")  // left single smart quote
+      .replaceAll('\u2019', "'")  // right single smart quote
+      .replaceAll('\u201C', '"')  // left double smart quote
+      .replaceAll('\u201D', '"')  // right double smart quote
+      .replaceAll('\u2026', '...') // ellipsis
+      .replaceAll('\u25B6', '>')  // triangle
+      .replaceAll('\u2192', '>'); // arrow
+    
+    // Strip any remaining non-ASCII-printable character that 
+    // Helvetica cannot render, rather than let a tofu box appear
+    result = result.replaceAll(
+      RegExp(r'[^\x20-\x7E]'), '');
+    
+    return result;
+  }
+
   String _str(dynamic value, [String fallback = '']) {
     if (value == null) return fallback;
     final s = value.toString().trim();
     if (s.isEmpty || s == 'null' || s == 'N/A' || 
         s == 'Not mentioned' || s == 'undefined' ||
         s == 'None' || s == 'n/a') return fallback;
-    return s;
+    return _sanitizeForPdf(s);
   }
 
   List<dynamic> _list(dynamic value) {
-    if (value is List) return value;
+    if (value is List) {
+      return value.map((e) {
+        if (e is String) return _sanitizeForPdf(e);
+        if (e is Map) {
+          final cleanMap = <String, dynamic>{};
+          e.forEach((k, v) {
+            cleanMap[k.toString()] = v is String ? _sanitizeForPdf(v) : v;
+          });
+          return cleanMap;
+        }
+        return e;
+      }).toList();
+    }
     return [];
   }
 
   List<Map<String, dynamic>> _mapList(dynamic value) {
     if (value is List) {
-      return value.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList();
+      return value.map((e) {
+        if (e is Map) {
+          final cleanMap = <String, dynamic>{};
+          e.forEach((key, val) {
+            if (val is String) {
+              cleanMap[key.toString()] = _sanitizeForPdf(val);
+            } else if (val is List) {
+              cleanMap[key.toString()] = _list(val);
+            } else if (val is Map) {
+              final nestedMap = <String, dynamic>{};
+              val.forEach((nk, nv) {
+                nestedMap[nk.toString()] = nv is String ? _sanitizeForPdf(nv) : nv;
+              });
+              cleanMap[key.toString()] = nestedMap;
+            } else {
+              cleanMap[key.toString()] = val;
+            }
+          });
+          return cleanMap;
+        }
+        return <String, dynamic>{};
+      }).toList();
     }
     return [];
   }
