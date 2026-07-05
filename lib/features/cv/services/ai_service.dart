@@ -1,7 +1,12 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
+
+final aiServiceProvider = Provider<AiService>((ref) {
+  return AiService();
+});
 
 class AiService {
   static const String _baseUrl =

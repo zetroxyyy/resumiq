@@ -12,8 +12,9 @@ import '../services/photo_service.dart';
 
 class CvEditorScreen extends ConsumerStatefulWidget {
   final String cvId;
+  final CvModel cv;
 
-  const CvEditorScreen({super.key, required this.cvId});
+  const CvEditorScreen({super.key, required this.cvId, required this.cv});
 
   @override
   ConsumerState<CvEditorScreen> createState() => _CvEditorScreenState();
@@ -37,26 +38,23 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _locationController;
-  late TextEditingController _linkedinController;
+  late TextEditingController _linkedInController;
   late TextEditingController _portfolioController;
 
   // ─── Summary ──────────────────────────────────────────────────────────────────
   late TextEditingController _summaryController;
 
   // ─── Work Experience ─────────────────────────────────────────────────────────
-  // Each entry: Map with keys: company, role, startDate, endDate, current, responsibilities (List<String>)
-  List<Map<String, dynamic>> _workExperience = [];
-  // Controllers per entry, per field:
-  // _workControllers[i] = {company, role, startDate, endDate}
+  late List<Map<String, dynamic>> _workExperience;
   List<Map<String, TextEditingController>> _workControllers = [];
-  // Responsibility controllers per entry
   List<List<TextEditingController>> _respControllers = [];
 
   // ─── Education ───────────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _education = [];
+  late List<Map<String, dynamic>> _education;
   List<Map<String, TextEditingController>> _eduControllers = [];
 
   // ─── Skills ──────────────────────────────────────────────────────────────────
+  late Map<String, List<String>> _skills;
   List<String> _technicalSkills = [];
   List<String> _softSkills = [];
   List<String> _languages = [];
@@ -65,17 +63,17 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   final _langSkillInput = TextEditingController();
 
   // ─── Certifications ──────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _certifications = [];
+  late List<Map<String, dynamic>> _certifications;
   List<Map<String, TextEditingController>> _certControllers = [];
 
   // ─── Projects ────────────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> _projects = [];
+  late List<Map<String, dynamic>> _projects;
   List<Map<String, TextEditingController>> _projControllers = [];
   List<List<String>> _projTechStacks = [];
   List<TextEditingController> _projTechInputs = [];
 
   // ─── Achievements ────────────────────────────────────────────────────────────
-  List<String> _achievements = [];
+  late List<String> _achievements;
   List<TextEditingController> _achieveControllers = [];
 
   // ─── CV Meta ─────────────────────────────────────────────────────────────────
@@ -84,66 +82,54 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize with empty controllers — data loaded in didChangeDependencies
-    _fullNameController = TextEditingController();
-    _emailController = TextEditingController();
-    _phoneController = TextEditingController();
-    _locationController = TextEditingController();
-    _linkedinController = TextEditingController();
-    _portfolioController = TextEditingController();
-    _summaryController = TextEditingController();
-  }
-
-  void _loadFromCv(CvModel cv) {
-    if (_cvModel?.id == cv.id && _cvModel?.updatedAt == cv.updatedAt) return;
+    final cv = widget.cv;
     _cvModel = cv;
-
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
 
-    _fullNameController.text = personalInfo['fullName'] as String? ?? '';
-    _emailController.text = personalInfo['email'] as String? ?? '';
-    _phoneController.text = personalInfo['phone'] as String? ?? '';
-    _locationController.text = personalInfo['location'] as String? ?? '';
-    _linkedinController.text = personalInfo['linkedIn'] as String? ?? '';
-    _portfolioController.text = personalInfo['portfolio'] as String? ?? '';
-    _summaryController.text = content['summary'] as String? ?? '';
+    _fullNameController = TextEditingController(text: personalInfo['fullName'] as String? ?? '');
+    _emailController = TextEditingController(text: personalInfo['email'] as String? ?? '');
+    _phoneController = TextEditingController(text: personalInfo['phone'] as String? ?? '');
+    _locationController = TextEditingController(text: personalInfo['location'] as String? ?? '');
+    _linkedInController = TextEditingController(text: personalInfo['linkedIn'] as String? ?? '');
+    _portfolioController = TextEditingController(text: personalInfo['portfolio'] as String? ?? '');
+    _summaryController = TextEditingController(text: content['summary'] as String? ?? '');
 
     _photoUrl = cv.photoUrl;
     _passportUrl = cv.passportUrl;
 
     // Work Experience
-    _disposeWorkControllers();
     final workList = content['workExperience'] as List? ?? [];
     _workExperience = workList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     _initWorkControllers();
 
     // Education
-    _disposeEduControllers();
     final eduList = content['education'] as List? ?? [];
     _education = eduList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     _initEduControllers();
 
     // Skills
     final skillsMap = content['skills'] as Map<String, dynamic>? ?? {};
+    _skills = {
+      'technical': List<String>.from(skillsMap['technical'] as List? ?? []),
+      'soft': List<String>.from(skillsMap['soft'] as List? ?? []),
+      'languages': List<String>.from(skillsMap['languages'] as List? ?? []),
+    };
     _technicalSkills = List<String>.from(skillsMap['technical'] as List? ?? []);
     _softSkills = List<String>.from(skillsMap['soft'] as List? ?? []);
     _languages = List<String>.from(skillsMap['languages'] as List? ?? []);
 
     // Certifications
-    _disposeCertControllers();
     final certList = content['certifications'] as List? ?? [];
     _certifications = certList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     _initCertControllers();
 
     // Projects
-    _disposeProjControllers();
     final projList = content['projects'] as List? ?? [];
     _projects = projList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     _initProjControllers();
 
     // Achievements
-    _disposeAchieveControllers();
     final achList = content['achievements'] as List? ?? [];
     _achievements = achList.map((e) => e.toString()).toList();
     _initAchieveControllers();
@@ -247,7 +233,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _locationController.dispose();
-    _linkedinController.dispose();
+    _linkedInController.dispose();
     _portfolioController.dispose();
     _summaryController.dispose();
     _disposeWorkControllers();
@@ -263,83 +249,127 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
 
   // ─── Save All ────────────────────────────────────────────────────────────────
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      )
+    );
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   Future<void> _saveAll() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      _showSnack('Session expired. Please sign in again.');
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || userId.isEmpty) {
+      _showError('Not signed in. Please sign out and sign in again.');
       return;
     }
 
-    setState(() => _isSaving = true);
+    final cvId = widget.cvId;
+    if (cvId.isEmpty) {
+      _showError('CV ID missing. Please go back and try again.');
+      return;
+    }
 
-    try {
-      // Build updated generatedContent
-      final updatedContent = Map<String, dynamic>.from(_cvModel?.generatedContent ?? {});
+    // Sync local state list variables with text controllers before saving
+    _workExperience = List.generate(_workControllers.length, (i) {
+      final resps = _respControllers[i].map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+      return {
+        'company': _workControllers[i]['company']!.text.trim(),
+        'role': _workControllers[i]['role']!.text.trim(),
+        'startDate': _workControllers[i]['startDate']!.text.trim(),
+        'endDate': _workControllers[i]['endDate']!.text.trim(),
+        'current': _workExperience[i]['current'] as bool? ?? false,
+        'responsibilities': resps,
+      };
+    });
 
-      updatedContent['personalInfo'] = {
+    _education = List.generate(_eduControllers.length, (i) => {
+      'institution': _eduControllers[i]['institution']!.text.trim(),
+      'degree': _eduControllers[i]['degree']!.text.trim(),
+      'field': _eduControllers[i]['field']!.text.trim(),
+      'startDate': _eduControllers[i]['startDate']!.text.trim(),
+      'endDate': _eduControllers[i]['endDate']!.text.trim(),
+      'grade': _eduControllers[i]['grade']!.text.trim(),
+    });
+
+    _skills = {
+      'technical': _technicalSkills,
+      'soft': _softSkills,
+      'languages': _languages,
+    };
+
+    _certifications = List.generate(_certControllers.length, (i) => {
+      'name': _certControllers[i]['name']!.text.trim(),
+      'issuer': _certControllers[i]['issuer']!.text.trim(),
+      'date': _certControllers[i]['date']!.text.trim(),
+    });
+
+    _projects = List.generate(_projControllers.length, (i) => {
+      'name': _projControllers[i]['name']!.text.trim(),
+      'description': _projControllers[i]['description']!.text.trim(),
+      'url': _projControllers[i]['url']!.text.trim(),
+      'techStack': _projTechStacks[i],
+    });
+
+    _achievements = _achieveControllers
+        .map((c) => c.text.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    // Build updated content map from local state
+    final updatedContent = {
+      'personalInfo': {
         'fullName': _fullNameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
         'location': _locationController.text.trim(),
-        'linkedIn': _linkedinController.text.trim(),
-        'portfolio': _portfolioController.text.trim(),
-      };
+        'linkedIn': _linkedInController.text.trim(),
+        'portfolio': '',
+      },
+      'summary': _summaryController.text.trim(),
+      'workExperience': _workExperience,
+      'education': _education,
+      'skills': _skills,
+      'certifications': _certifications,
+      'projects': _projects,
+      'achievements': _achievements,
+      'references': 'Available upon request',
+      'cvType': widget.cv.generatedContent['cvType'] ?? 'Normal',
+      'score': widget.cv.generatedContent['score'] ?? 0,
+      'scoreFeedback': widget.cv.generatedContent['scoreFeedback'] ?? [],
+      'atsOptimized': false,
+    };
 
-      updatedContent['summary'] = _summaryController.text.trim();
+    debugPrint('Saving edit: userId=$userId cvId=$cvId');
 
-      updatedContent['workExperience'] = List.generate(_workControllers.length, (i) {
-        final resps = _respControllers[i].map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
-        return {
-          'company': _workControllers[i]['company']!.text.trim(),
-          'role': _workControllers[i]['role']!.text.trim(),
-          'startDate': _workControllers[i]['startDate']!.text.trim(),
-          'endDate': _workControllers[i]['endDate']!.text.trim(),
-          'current': _workExperience[i]['current'] as bool? ?? false,
-          'responsibilities': resps,
-        };
-      });
+    setState(() => _isSaving = true);
 
-      updatedContent['education'] = List.generate(_eduControllers.length, (i) => {
-        'institution': _eduControllers[i]['institution']!.text.trim(),
-        'degree': _eduControllers[i]['degree']!.text.trim(),
-        'field': _eduControllers[i]['field']!.text.trim(),
-        'startDate': _eduControllers[i]['startDate']!.text.trim(),
-        'endDate': _eduControllers[i]['endDate']!.text.trim(),
-        'grade': _eduControllers[i]['grade']!.text.trim(),
-      });
+    try {
+      // Save current version first
+      final versionsRef = FirebaseFirestore.instance
+          .collection('users').doc(userId)
+          .collection('cvs').doc(cvId)
+          .collection('versions');
 
-      updatedContent['skills'] = {
-        'technical': _technicalSkills,
-        'soft': _softSkills,
-        'languages': _languages,
-      };
+      final currentData = await FirebaseFirestore.instance
+          .collection('users').doc(userId)
+          .collection('cvs').doc(cvId)
+          .get();
 
-      updatedContent['certifications'] = List.generate(_certControllers.length, (i) => {
-        'name': _certControllers[i]['name']!.text.trim(),
-        'issuer': _certControllers[i]['issuer']!.text.trim(),
-        'date': _certControllers[i]['date']!.text.trim(),
-      });
-
-      updatedContent['projects'] = List.generate(_projControllers.length, (i) => {
-        'name': _projControllers[i]['name']!.text.trim(),
-        'description': _projControllers[i]['description']!.text.trim(),
-        'url': _projControllers[i]['url']!.text.trim(),
-        'techStack': _projTechStacks[i],
-      });
-
-      updatedContent['achievements'] = _achieveControllers
-          .map((c) => c.text.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-
-      // Save version snapshot before overwriting
-      await saveVersion(
-        uid: currentUser.uid,
-        cvId: widget.cvId,
-        generatedContent: Map<String, dynamic>.from(_cvModel?.generatedContent ?? {}),
-        template: _cvModel?.template ?? 'clean',
-        changedBy: 'granular_edit',
-      );
+      if (currentData.exists) {
+        await versionsRef.add({
+          'generatedContent': currentData.data()?['generatedContent'],
+          'template': currentData.data()?['template'],
+          'changedBy': 'manual_edit',
+          'changedAt': FieldValue.serverTimestamp(),
+          'versionNumber': (currentData.data()?['version'] ?? 1),
+        });
+      }
 
       // Build update map
       final updateMap = <String, dynamic>{
@@ -359,33 +389,34 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
         updateMap['passportUrl'] = FieldValue.delete();
       }
 
+      // Save updated content
       await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .collection('cvs')
-          .doc(widget.cvId)
+          .collection('users').doc(userId)
+          .collection('cvs').doc(cvId)
           .update(updateMap);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('CV updated successfully'),
-            backgroundColor: Colors.green,
-          ),
+            content: Text('CV saved successfully'),
+            backgroundColor: Color(0xFF6C63FF),
+          )
         );
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true); // Return true = refresh needed
       }
     } catch (e) {
+      debugPrint('Save error: $e');
       if (mounted) {
-        _showSnack('Error saving CV: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            backgroundColor: Colors.red,
+          )
+        );
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
-  }
-
-  void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   // ─── Photo Methods ────────────────────────────────────────────────────────────
@@ -500,10 +531,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
         if (cv == null) {
           return const Scaffold(body: Center(child: Text('CV not found')));
         }
-        // Load data only once or when CV changes
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _loadFromCv(cv);
-        });
+
 
         final nepalTemplates = [
           'Nepal-Saudi',
@@ -598,7 +626,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                     ),
                     const SizedBox(height: 12),
                     CustomTextField(
-                      controller: _linkedinController,
+                      controller: _linkedInController,
                       labelText: 'LinkedIn URL',
                       prefixIcon: Icons.link,
                     ),
