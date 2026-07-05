@@ -19,13 +19,7 @@ class AiService {
     if (_apiKey.isNotEmpty) return;
 
     try {
-      final rc = FirebaseRemoteConfig.instance;
-      await rc.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: Duration.zero,
-      ));
-      await rc.fetchAndActivate();
-      final key = rc.getString('GROQ_API_KEY').trim();
+      final key = FirebaseRemoteConfig.instance.getString('GROQ_API_KEY').trim();
       debugPrint('Groq key loaded, length: ${key.length}');
       if (key.isNotEmpty) {
         _apiKey = key;
@@ -33,17 +27,6 @@ class AiService {
       }
     } catch (e) {
       debugPrint('RC fetch error: $e');
-    }
-
-    try {
-      final cached =
-          FirebaseRemoteConfig.instance.getString('GROQ_API_KEY').trim();
-      if (cached.isNotEmpty) {
-        _apiKey = cached;
-        return;
-      }
-    } catch (e) {
-      debugPrint('RC cache error: $e');
     }
 
     throw Exception('AI service unavailable. Please try again later.');

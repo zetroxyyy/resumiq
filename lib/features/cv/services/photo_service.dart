@@ -8,53 +8,48 @@ import 'cloudinary_service.dart';
 class PhotoService {
   final CloudinaryService _cloudinary = CloudinaryService();
 
-  // ─── Remote Config Key ──────────────────────────────────────────────────────
-
-  Future<String> _fetchRemoveBgKey() async {
-    try {
-      final rc = FirebaseRemoteConfig.instance;
-      await rc.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: Duration.zero,
-      ));
-      await rc.fetchAndActivate();
-      final key = rc.getString('removeBgApiKey');
-      return key;
-    } catch (e) {
-      debugPrint('PhotoService: Remote Config fetch failed: $e');
-      return '';
-    }
-  }
-
   // ─── Background Removal via remove.bg API ───────────────────────────────────
 
   Future<Uint8List> removeBackground(File imageFile) async {
-    final apiKey = await _fetchRemoveBgKey();
+    final apiKey = FirebaseRemoteConfig.instance
+      .getString('REMOVE_BG_API_KEY').trim();
+    
+    debugPrint('remove.bg key length: ${apiKey.length}');
+    
+    if (apiKey.isEmpty) {
+      throw Exception('BG_KEY_MISSING');
+    }
     
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('https://api.remove.bg/v1.0/removebg'),
     );
-    
     request.headers['X-Api-Key'] = apiKey;
     request.fields['size'] = 'auto';
     request.files.add(await http.MultipartFile.fromPath(
-      'image_file',
-      imageFile.path,
+      'image_file', imageFile.path,
     ));
+    
+    debugPrint('remove.bg: sending request...');
     
     final streamedResponse = await request.send()
       .timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamedResponse);
     
-    debugPrint('remove.bg status: ${response.statusCode}');
+    debugPrint('remove.bg: status ${response.statusCode}');
     
     if (response.statusCode == 200) {
-      return response.bodyBytes; // transparent PNG
-    } else {
-      debugPrint('remove.bg error: ${response.body}');
-      throw Exception('Background removal failed: ${response.statusCode}');
+      debugPrint('remove.bg: success, bytes=${response.bodyBytes.length}');
+      return response.bodyBytes;
     }
+    
+    // Surface the exact reason
+    final bodyPreview = response.body.length > 300 
+      ? response.body.substring(0, 300) 
+      : response.body;
+    debugPrint('remove.bg: FAILED - ${response.statusCode} - $bodyPreview');
+    
+    throw Exception('BG_REMOVAL_FAILED_${response.statusCode}: $bodyPreview');
   }
 
   // ─── White Background Compositing ───────────────────────────────────────────
@@ -102,44 +97,4 @@ class PhotoService {
   // ─── Full Pipeline: Pick → Remove BG → Upload ────────────────────────────────
 
   /// Full photo processing pipeline.
-  /// Returns Cloudinary URL on success.
-  /// On remove.bg failure, uploads original image and returns URL (graceful fallback).
-  Future<PhotoUploadResult> processAndUploadPhoto({
-    required File imageFile,
-    required String userId,
-  }) async {
-    try {
-      // Try remove.bg
-      final transparentBytes = await removeBackground(imageFile);
-      final whiteBytes = await addWhiteBackground(transparentBytes);
-      final url = await uploadPhoto(whiteBytes, userId);
-      return PhotoUploadResult(url: url, usedBgRemoval: true);
-    } catch (bgError) {
-      debugPrint('PhotoService: BG removal failed ($bgError), uploading original');
-      // Fallback: upload original image
-      try {
-        final originalBytes = await imageFile.readAsBytes();
-        // Still add white background if the original has transparency
-        Uint8List bytesToUpload;
-        try {
-          bytesToUpload = await addWhiteBackground(originalBytes);
-        } catch (_) {
-          bytesToUpload = originalBytes;
-        }
-        final url = await uploadPhoto(bytesToUpload, userId);
-        return PhotoUploadResult(url: url, usedBgRemoval: false);
-      } catch (uploadError) {
-        throw Exception('Photo upload failed: $uploadError');
-      }
-    }
-  }
-}
-
-// ─── Result Model ────────────────────────────────────────────────────────────
-
-class PhotoUploadResult {
-  final String url;
-  final bool usedBgRemoval;
-
-  const PhotoUploadResult({required this.url, required this.usedBgRemoval});
 }

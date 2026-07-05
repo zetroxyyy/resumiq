@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -283,24 +284,52 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         throw Exception('Image too large. Please use a smaller photo.');
       }
 
-      final result = await _photoService.processAndUploadPhoto(
-        imageFile: imageFile,
-        userId: user.uid,
-      );
-      if (mounted) {
-        ref.read(cvGenerationProvider.notifier).setPhotoUrl(result.url);
-        setState(() {
-          _photoUrl = result.url;
-          _isPhotoLoading = false;
-        });
-        if (!result.usedBgRemoval) {
+      String uploadedUrl = '';
+      try {
+        final transparentBytes = await _photoService.removeBackground(imageFile);
+        final whiteBgBytes = await _photoService.addWhiteBackground(transparentBytes);
+        uploadedUrl = await _photoService.uploadPhoto(whiteBgBytes, user.uid);
+      } catch (e) {
+        debugPrint('BG removal error caught: $e');
+        String reason = 'Unknown error';
+        if (e.toString().contains('BG_KEY_MISSING')) {
+          reason = 'Service not configured';
+        } else if (e.toString().contains('402')) {
+          reason = 'Monthly limit reached';
+        } else if (e.toString().contains('403')) {
+          reason = 'Invalid API key';
+        } else if (e.toString().contains('BG_REMOVAL_FAILED')) {
+          reason = 'Processing failed';
+        }
+
+        // Still use the original photo so the user isn't blocked
+        // upload original imageFile bytes to Cloudinary as fallback
+        final originalBytes = await imageFile.readAsBytes();
+        Uint8List bytesToUpload;
+        try {
+          bytesToUpload = await _photoService.addWhiteBackground(originalBytes);
+        } catch (_) {
+          bytesToUpload = originalBytes;
+        }
+        uploadedUrl = await _photoService.uploadPhoto(bytesToUpload, user.uid);
+
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Photo added without background removal'),
-              duration: Duration(seconds: 3),
-            ),
+            SnackBar(
+              content: Text('Background removal unavailable ($reason). Using original photo.'),
+              backgroundColor: Colors.orange[800],
+              duration: const Duration(seconds: 5),
+            )
           );
         }
+      }
+
+      if (mounted) {
+        ref.read(cvGenerationProvider.notifier).setPhotoUrl(uploadedUrl);
+        setState(() {
+          _photoUrl = uploadedUrl;
+          _isPhotoLoading = false;
+        });
       }
     } catch (e) {
       debugPrint('Photo upload error: $e');

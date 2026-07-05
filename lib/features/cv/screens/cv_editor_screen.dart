@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -524,18 +525,63 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   Future<void> _processProfilePhoto(File imageFile, String userId) async {
     setState(() => _isPhotoLoading = true);
     try {
-      final result = await _photoService.processAndUploadPhoto(
-        imageFile: imageFile,
-        userId: userId,
-      );
+      // Defensive checks
+      if (!await imageFile.exists()) {
+        throw Exception('Image file not found. Please try picking again.');
+      }
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Image file is empty. Please try a different photo.');
+      }
+      if (fileSize > 10 * 1024 * 1024) {
+        throw Exception('Image too large. Please use a smaller photo.');
+      }
+
+      String uploadedUrl = '';
+      try {
+        final transparentBytes = await _photoService.removeBackground(imageFile);
+        final whiteBgBytes = await _photoService.addWhiteBackground(transparentBytes);
+        uploadedUrl = await _photoService.uploadPhoto(whiteBgBytes, userId);
+      } catch (e) {
+        debugPrint('BG removal error caught: $e');
+        String reason = 'Unknown error';
+        if (e.toString().contains('BG_KEY_MISSING')) {
+          reason = 'Service not configured';
+        } else if (e.toString().contains('402')) {
+          reason = 'Monthly limit reached';
+        } else if (e.toString().contains('403')) {
+          reason = 'Invalid API key';
+        } else if (e.toString().contains('BG_REMOVAL_FAILED')) {
+          reason = 'Processing failed';
+        }
+
+        // Still use the original photo so the user isn't blocked
+        // upload original imageFile bytes to Cloudinary as fallback
+        final originalBytes = await imageFile.readAsBytes();
+        Uint8List bytesToUpload;
+        try {
+          bytesToUpload = await _photoService.addWhiteBackground(originalBytes);
+        } catch (_) {
+          bytesToUpload = originalBytes;
+        }
+        uploadedUrl = await _photoService.uploadPhoto(bytesToUpload, userId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Background removal unavailable ($reason). Using original photo.'),
+              backgroundColor: Colors.orange[800],
+              duration: const Duration(seconds: 5),
+            )
+          );
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _photoUrl = result.url;
+          _photoUrl = uploadedUrl;
           _isPhotoLoading = false;
         });
-        if (!result.usedBgRemoval) {
-          _showSnack('Photo added without background removal');
-        }
       }
     } catch (e) {
       if (mounted) {

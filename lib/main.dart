@@ -1,10 +1,10 @@
 import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
+import 'core/services/remote_config_init.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -27,8 +27,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Initialize Remote Config before runApp to prevent early fetch issues
-  await FirebaseRemoteConfig.instance.ensureInitialized();
+  // Initialize Remote Config once at startup
+  await RemoteConfigInit.initializeOnce();
 
   runApp(
     const ProviderScope(
