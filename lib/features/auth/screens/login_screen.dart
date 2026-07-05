@@ -67,7 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Resumind',
+                    'Resumiq',
                     style: theme.textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,

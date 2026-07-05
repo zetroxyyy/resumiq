@@ -93,7 +93,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Resumind',
+                      'Resumiq',
                       style: theme.textTheme.displayMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Colors.white,

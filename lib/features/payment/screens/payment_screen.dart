@@ -288,7 +288,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Resumind Pro - ${isMonthly ? "Monthly" : "Yearly"}'),
+                                Text('Resumiq Pro - ${isMonthly ? "Monthly" : "Yearly"}'),
                                 Text(Formatters.formatCurrency(price)),
                               ],
                             ),

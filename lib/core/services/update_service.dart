@@ -101,7 +101,7 @@ class UpdateService {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Version $newVersion is now available. Please update Resumind to continue using all features.',
+                  'Version $newVersion is now available. Please update Resumiq to continue using all features.',
                   style: const TextStyle(height: 1.5),
                 ),
                 const SizedBox(height: 8),

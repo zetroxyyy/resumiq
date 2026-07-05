@@ -236,7 +236,7 @@ class ProfileScreen extends ConsumerWidget {
                         onLongPress: () {
                           Clipboard.setData(
                             ClipboardData(
-                              text: 'Resumind v${AppConstants.appVersion}',
+                              text: 'Resumiq v${AppConstants.appVersion}',
                             ),
                           );
                           ScaffoldMessenger.of(context).showSnackBar(
