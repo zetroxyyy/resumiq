@@ -16,14 +16,12 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
   String _selectedPlan = 'yearly';
 
   final List<FeatureRow> _features = [
-    const FeatureRow('Unlimited AI Generations', false, true),
-    const FeatureRow('Unlock all Templates', false, true),
-    const FeatureRow('Premium PDF Layout Styles', false, true),
-    const FeatureRow('Detailed AI Scores & Suggestions', false, true),
-    const FeatureRow('Granular CV Editor', false, true),
-    const FeatureRow('Photo & Passport Upload', false, true),
-    const FeatureRow('Shareable Resumes', false, true),
-    const FeatureRow('Priority Support', false, true),
+    const FeatureRow('2 Free CV Generations / month', true, true),
+    const FeatureRow('Detailed AI Scores & Suggestions', true, true),
+    const FeatureRow('Granular CV Editor & References', true, true),
+    const FeatureRow('Full-resolution Photo (with BG removal)', false, true),
+    const FeatureRow('Page Attachment Uploads (Passport, Citizenship, etc.)', false, true),
+    const FeatureRow('Link Sharing (with QR Code generation)', false, true),
   ];
 
   @override

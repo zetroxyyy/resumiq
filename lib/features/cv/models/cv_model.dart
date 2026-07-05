@@ -21,6 +21,9 @@ class CvModel {
   final String? coverLetterDocxUrl;
   final String? photoUrl;
   final String? passportUrl;
+  final String? citizenshipFrontUrl;
+  final String? citizenshipBackUrl;
+  final String? bodyPhotoUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -45,6 +48,9 @@ class CvModel {
     this.coverLetterDocxUrl,
     this.photoUrl,
     this.passportUrl,
+    this.citizenshipFrontUrl,
+    this.citizenshipBackUrl,
+    this.bodyPhotoUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -71,6 +77,9 @@ class CvModel {
       coverLetterDocxUrl: json['coverLetterDocxUrl'] as String?,
       photoUrl: json['photoUrl'] as String?,
       passportUrl: json['passportUrl'] as String?,
+      citizenshipFrontUrl: json['citizenshipFrontUrl'] as String?,
+      citizenshipBackUrl: json['citizenshipBackUrl'] as String?,
+      bodyPhotoUrl: json['bodyPhotoUrl'] as String?,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -102,6 +111,9 @@ class CvModel {
       'coverLetterDocxUrl': coverLetterDocxUrl,
       'photoUrl': photoUrl,
       'passportUrl': passportUrl,
+      'citizenshipFrontUrl': citizenshipFrontUrl,
+      'citizenshipBackUrl': citizenshipBackUrl,
+      'bodyPhotoUrl': bodyPhotoUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -130,6 +142,12 @@ class CvModel {
     bool clearPhotoUrl = false,
     String? passportUrl,
     bool clearPassportUrl = false,
+    String? citizenshipFrontUrl,
+    bool clearCitizenshipFrontUrl = false,
+    String? citizenshipBackUrl,
+    bool clearCitizenshipBackUrl = false,
+    String? bodyPhotoUrl,
+    bool clearBodyPhotoUrl = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -154,6 +172,9 @@ class CvModel {
       coverLetterDocxUrl: coverLetterDocxUrl ?? this.coverLetterDocxUrl,
       photoUrl: clearPhotoUrl ? null : (photoUrl ?? this.photoUrl),
       passportUrl: clearPassportUrl ? null : (passportUrl ?? this.passportUrl),
+      citizenshipFrontUrl: clearCitizenshipFrontUrl ? null : (citizenshipFrontUrl ?? this.citizenshipFrontUrl),
+      citizenshipBackUrl: clearCitizenshipBackUrl ? null : (citizenshipBackUrl ?? this.citizenshipBackUrl),
+      bodyPhotoUrl: clearBodyPhotoUrl ? null : (bodyPhotoUrl ?? this.bodyPhotoUrl),
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

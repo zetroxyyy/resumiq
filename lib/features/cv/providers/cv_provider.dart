@@ -9,12 +9,10 @@ import '../services/ai_service.dart';
 
 class CvInputState {
   final String rawInput;
-  final String format;
   final String? photoUrl;
 
   const CvInputState({
     required this.rawInput,
-    required this.format,
     this.photoUrl,
   });
 }
@@ -42,8 +40,13 @@ final cvGenerationProvider = StateNotifierProvider<CvGenerationNotifier, CvGener
 class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
   final Ref _ref;
   final AiService _gemini = AiService();
+  String? _pendingPhotoUrl;
 
   CvGenerationNotifier(this._ref) : super(const CvGenerationState());
+
+  void setPhotoUrl(String url) {
+    _pendingPhotoUrl = url;
+  }
 
   Future<void> generate(BuildContext context) async {
     final inputData = _ref.read(cvInputProvider);
@@ -60,7 +63,6 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
       // Generate CV content via REST API
       final generatedContent = await _gemini.generateCv(
         rawInput: inputData.rawInput,
-        cvType: inputData.format,
       );
 
       final personalInfo = generatedContent['personalInfo'] as Map<String, dynamic>?;
@@ -82,9 +84,6 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
 
       final scoreFeedbackList = List<String>.from(generatedContent['scoreFeedback'] as List? ?? []);
 
-      final photoUrl = inputData.photoUrl;
-      debugPrint('Photo URL when saving CV: ${photoUrl}');
-
       final cv = CvModel(
         id: '',
         userId: user.uid,
@@ -92,13 +91,13 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         rawInput: inputData.rawInput,
         jobDescription: null,
         generatedContent: generatedContent,
-        template: 'clean',
-        cvType: inputData.format,
+        template: 'Normal',
+        cvType: 'Normal',
         atsOptimized: false,
         score: score,
         scoreFeedback: scoreFeedbackList,
         version: 1,
-        photoUrl: photoUrl,
+        photoUrl: _pendingPhotoUrl,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -125,6 +124,9 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
           'photoUrl': cv.photoUrl,
       });
 
+      // Clear pending
+      _pendingPhotoUrl = null;
+
       // Try to increment generationsThisMonth on the user document
       try {
         await FirebaseFirestore.instance
@@ -144,15 +146,15 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         uid: user.uid,
         cvId: cvId,
         generatedContent: generatedContent,
-        template: 'clean',
+        template: 'Normal',
         changedBy: 'regenerated',
       );
 
       state = CvGenerationState(generatedCvId: cvId);
 
       if (context.mounted) {
-        // Redirection on successful generation
-        context.go('/cv/templates?cvId=$cvId');
+        // Redirection on successful generation - skip templates selection
+        context.go('/cv/preview/$cvId');
       }
     } catch (e) {
       final cleanMessage = e.toString().replaceAll('Exception:', '').trim();
