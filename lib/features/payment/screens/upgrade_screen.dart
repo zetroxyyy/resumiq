@@ -17,11 +17,12 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
 
   final List<FeatureRow> _features = [
     const FeatureRow('Unlimited AI Generations', false, true),
-    const FeatureRow('Unlock all 8 Templates', false, true),
+    const FeatureRow('Unlock all Templates', false, true),
     const FeatureRow('Premium PDF Layout Styles', false, true),
     const FeatureRow('Detailed AI Scores & Suggestions', false, true),
-    const FeatureRow('Draggable Live CV Editors', false, true),
-    const FeatureRow('Shareable Resumes (Phase 3)', false, true),
+    const FeatureRow('Granular CV Editor', false, true),
+    const FeatureRow('Photo & Passport Upload', false, true),
+    const FeatureRow('Shareable Resumes', false, true),
     const FeatureRow('Priority Support', false, true),
   ];
 

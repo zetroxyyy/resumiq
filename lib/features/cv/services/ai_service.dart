@@ -84,13 +84,7 @@ class AiService {
   Future<Map<String, dynamic>> generateCv({
     required String rawInput,
     required String cvType,
-    String? jobDescription,
-    bool atsOptimized = false,
   }) async {
-    final atsNote = atsOptimized
-        ? 'IMPORTANT: ATS-optimized CV required. Plain text only, standard section names, no special characters except hyphens and bullets. Set atsOptimized: true in output.'
-        : '';
-
     final prompt = '''Take a deep breath and work through this step by step.
 Quality matters more than speed. Write every bullet point as if the candidate's job offer depends on it.
 
@@ -147,16 +141,8 @@ STRICT RULES YOU MUST FOLLOW:
 15. Do not add sections that have zero data. If there are no 
     projects mentioned, leave the projects array empty — 
     do not invent projects.
-16. The "atsOptimized" field in the JSON response must be explicitly 
-    set to true if ATS-optimized, and false otherwise.
 
 CV Type requested: $cvType
-${jobDescription != null && jobDescription.isNotEmpty ? '''
-JOB DESCRIPTION TO TAILOR FOR:
-$jobDescription
-Make every section of the CV speak directly to this job. 
-Use keywords from the job description naturally.''' : ''}
-$atsNote
 
 RAW INFORMATION FROM USER:
 $rawInput
@@ -216,7 +202,7 @@ Required JSON structure:
   "achievements": ["Specific achievement 1", "Specific achievement 2"],
   "references": "Available upon request",
   "cvType": "$cvType",
-  "atsOptimized": ${atsOptimized.toString()},
+  "atsOptimized": false,
   "score": 0,
   "scoreFeedback": [
     "Specific suggestion 1",
@@ -235,14 +221,14 @@ Required JSON structure:
 
     try {
       final map = jsonDecode(cleaned) as Map<String, dynamic>;
-      map['atsOptimized'] = map['atsOptimized'] == true;
+      map['atsOptimized'] = false;
       return map;
     } catch (e) {
       debugPrint('JSON parse error: $e\nRaw: $cleaned');
       final match = RegExp(r'\{[\s\S]*\}').firstMatch(cleaned);
       if (match != null) {
         final map = jsonDecode(match.group(0)!) as Map<String, dynamic>;
-        map['atsOptimized'] = map['atsOptimized'] == true;
+        map['atsOptimized'] = false;
         return map;
       }
       throw Exception('AI returned invalid response. Please try again.');

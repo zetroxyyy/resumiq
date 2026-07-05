@@ -153,7 +153,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                 ),
                 const SizedBox(height: 16),
                  Text(
-                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, premium styling, and unlimited generations.",
+                  "$feature is a Pro feature. Upgrade to Pro for access to premium styling and unlimited generations.",
                   style: const TextStyle(color: Colors.white70, height: 1.5),
                   textAlign: TextAlign.center,
                 ),
@@ -193,7 +193,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           return const Scaffold(body: Center(child: Text('CV not found.')));
         }
         final theme = Theme.of(context);
-        final bool isAtsMode = cv.generatedContent['atsOptimized'] == true;
 
         final score = cv.score ?? 0;
         final scoreColor = score >= 80
@@ -307,29 +306,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                         ),
                       ),
                     ],
-
-                    // ATS Banner above action bar when atsOptimized is true
-                    if (isAtsMode)
-                      Container(
-                        color: theme.colorScheme.secondary.withOpacity(0.9),
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.bolt, color: Colors.black, size: 18),
-                            SizedBox(width: 6),
-                            Text(
-                              '⚡ ATS Mode — formatted for applicant tracking systems',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
                     // Action panel
                     Container(
@@ -878,8 +854,13 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
       );
 
       // Snapshot current state before overwriting (version history)
+      final String voiceUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (voiceUid.isEmpty) {
+        throw Exception('Session expired. Please sign in again.');
+      }
+
       await saveVersion(
-        uid: widget.userId,
+        uid: voiceUid,
         cvId: widget.cv.id,
         generatedContent: Map<String, dynamic>.from(widget.cv.generatedContent),
         template: widget.cv.template,
@@ -888,7 +869,7 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
 
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(widget.userId)
+          .doc(voiceUid)
           .collection('cvs')
           .doc(widget.cv.id)
           .update({
