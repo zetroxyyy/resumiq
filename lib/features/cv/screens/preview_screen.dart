@@ -325,10 +325,15 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                             label: 'Voice Edit',
                             onTap: () => _showVoiceEditBottomSheet(cv, user.uid),
                           ),
-                          _buildBottomAction(
+                           _buildBottomAction(
                             icon: Icons.edit_note,
                             label: 'Edit',
-                            onTap: () => context.push('/cv/editor/${cv.id}'),
+                            onTap: () async {
+                              final result = await context.push('/cv/editor/${cv.id}', extra: cv);
+                              if (result == true) {
+                                ref.invalidate(cvDetailProvider(cv.id));
+                              }
+                            },
                           ),
                           _buildBottomActionWithProBadge(
                             icon: Icons.share,
@@ -719,7 +724,7 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
   }
 }
 
-class _VoiceEditBottomSheet extends StatefulWidget {
+class _VoiceEditBottomSheet extends ConsumerStatefulWidget {
   final CvModel cv;
   final String userId;
 
@@ -729,10 +734,10 @@ class _VoiceEditBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_VoiceEditBottomSheet> createState() => _VoiceEditBottomSheetState();
+  ConsumerState<_VoiceEditBottomSheet> createState() => _VoiceEditBottomSheetState();
 }
 
-class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
+class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
   final SpeechToText _speech = SpeechToText();
   bool _isListening = false;
   String _transcribedText = '';
@@ -844,53 +849,62 @@ class _VoiceEditBottomSheetState extends State<_VoiceEditBottomSheet> {
     if (_transcribedText.trim().isEmpty) return;
 
     setState(() => _isApplying = true);
-    final gemini = AiService();
+
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null || userId.isEmpty) {
+      if (mounted) {
+        setState(() => _isApplying = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session expired. Please sign in again.'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    final cvId = widget.cv.id;
 
     try {
-      final currentCvJson = widget.cv.generatedContent;
-      final updatedContent = await gemini.editCv(
-        currentCvData: currentCvJson,
-        editInstruction: _transcribedText.trim(),
-      );
-
-      // Snapshot current state before overwriting (version history)
-      final String voiceUid = FirebaseAuth.instance.currentUser?.uid ?? '';
-      if (voiceUid.isEmpty) {
-        throw Exception('Session expired. Please sign in again.');
-      }
+      final updatedContent = await ref.read(aiServiceProvider)
+        .editCv(
+          currentCvData: widget.cv.generatedContent,
+          editInstruction: _transcribedText.trim(),
+        );
 
       await saveVersion(
-        uid: voiceUid,
-        cvId: widget.cv.id,
+        uid: userId,
+        cvId: cvId,
         generatedContent: Map<String, dynamic>.from(widget.cv.generatedContent),
         template: widget.cv.template,
         changedBy: 'voice_edit',
       );
 
       await FirebaseFirestore.instance
-          .collection('users')
-          .doc(voiceUid)
-          .collection('cvs')
-          .doc(widget.cv.id)
+          .collection('users').doc(userId)
+          .collection('cvs').doc(cvId)
           .update({
-        'generatedContent': updatedContent,
-        'version': FieldValue.increment(1),
-        'updatedAt': Timestamp.now(),
-      });
+            'generatedContent': updatedContent,
+            'updatedAt': FieldValue.serverTimestamp(),
+            'version': FieldValue.increment(1),
+          });
+
+      ref.invalidate(cvDetailProvider(cvId));
 
       if (mounted) {
         Navigator.pop(context); // Close bottom sheet
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('CV updated ✓')),
+          const SnackBar(
+            content: Text('CV updated ✓'),
+            backgroundColor: Color(0xFF6C63FF),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Voice edit failed: ${e.toString().replaceAll('Exception:', '').trim()}'),
-            backgroundColor: Colors.redAccent,
-          ),
+            content: Text('Edit failed: $e'),
+            backgroundColor: Colors.red,
+          )
         );
       }
     } finally {

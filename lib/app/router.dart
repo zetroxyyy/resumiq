@@ -12,6 +12,7 @@ import '../features/cv/screens/generating_screen.dart';
 import '../features/cv/screens/template_selection_screen.dart';
 import '../features/cv/screens/preview_screen.dart';
 import '../features/cv/screens/cv_editor_screen.dart';
+import '../features/cv/models/cv_model.dart';
 import '../features/cv/screens/cover_letter_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/payment/screens/upgrade_screen.dart';
@@ -140,7 +141,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/cv/editor/:cvId',
         builder: (context, state) {
           final cvId = state.pathParameters['cvId'] ?? '';
-          return CvEditorScreen(cvId: cvId);
+          final cv = state.extra as CvModel;
+          return CvEditorScreen(cvId: cvId, cv: cv);
         },
       ),
       GoRoute(
