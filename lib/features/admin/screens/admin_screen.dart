@@ -54,7 +54,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     final allUsersAsync = ref.watch(allUsersProvider);
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin Console'),
@@ -68,6 +68,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               Tab(icon: Icon(Icons.people_alt_outlined), text: 'Users'),
               Tab(icon: Icon(Icons.campaign_outlined), text: 'Alerts'),
               Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Payments'),
+              Tab(icon: Icon(Icons.feedback_outlined), text: 'Feedback'),
             ],
           ),
         ),
@@ -94,6 +95,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
               // Tab 4: Payments
               _buildPaymentsTab(theme: theme),
+
+              // Tab 5: Feedback
+              _buildFeedbackTab(theme: theme),
             ],
           ),
         ),
@@ -122,6 +126,155 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFeedbackTab({required ThemeData theme}) {
+    debugPrint('AdminScreen/Feedback: _buildFeedbackTab called');
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('feedback')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        debugPrint(
+            'AdminScreen/Feedback: StreamBuilder state=${snapshot.connectionState} '
+            'hasData=${snapshot.hasData} '
+            'docsCount=${snapshot.data?.docs.length ?? 0} '
+            'error=${snapshot.error}');
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error loading feedback: ${snapshot.error}',
+                style: TextStyle(color: theme.colorScheme.error)),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return Center(
+            child: Text('No feedback submitted yet.',
+                style: TextStyle(color: theme.colorScheme.secondary)),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final message = data['message'] as String? ?? data['text'] as String? ?? '';
+            final email = data['email'] as String? ?? data['userEmail'] as String? ?? 'Anonymous';
+            final resolved = data['resolved'] == true;
+            final timestamp = data['createdAt'] as Timestamp?;
+            final dateStr = timestamp != null
+                ? DateFormat('yyyy-MM-dd HH:mm').format(timestamp.toDate())
+                : 'Pending...';
+
+            debugPrint(
+                'AdminScreen/Feedback: rendering doc[${doc.id}] '
+                'email=$email resolved=$resolved date=$dateStr');
+
+            return Card(
+              elevation: 0,
+              color: resolved
+                  ? theme.colorScheme.surface.withOpacity(0.5)
+                  : theme.colorScheme.surface,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: resolved
+                      ? theme.colorScheme.outline.withOpacity(0.4)
+                      : theme.colorScheme.outline,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            email,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: resolved
+                                  ? theme.colorScheme.onSurface.withOpacity(0.5)
+                                  : theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Resolved',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: resolved
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.secondary,
+                              ),
+                            ),
+                            Checkbox(
+                              value: resolved,
+                              onChanged: (val) async {
+                                final newVal = val ?? false;
+                                debugPrint(
+                                    'AdminScreen/Feedback: toggling resolved '
+                                    'doc=${doc.id} newResolved=$newVal');
+                                try {
+                                  await doc.reference.update({'resolved': newVal});
+                                  debugPrint(
+                                      'AdminScreen/Feedback: update OK doc=${doc.id}');
+                                } catch (e) {
+                                  debugPrint(
+                                      'AdminScreen/Feedback: update FAILED doc=${doc.id} err=$e');
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Update failed: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: resolved
+                            ? theme.colorScheme.onSurface.withOpacity(0.5)
+                            : theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dateStr,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

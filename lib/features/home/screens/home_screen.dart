@@ -36,15 +36,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _dismissGlobalAlert(String id) async {
+    debugPrint('HomeScreen/Alerts: dismissing global alert id=$id');
     final prefs = await SharedPreferences.getInstance();
     final newSet = {..._dismissedGlobalAlertIds, id};
     await prefs.setStringList('dismissed_global_alerts', newSet.toList());
     setState(() {
       _dismissedGlobalAlertIds = newSet;
     });
+    debugPrint('HomeScreen/Alerts: global alert dismissed id=$id, total dismissed=${newSet.length}');
   }
 
   Widget _buildAlertsSection(String userId, ThemeData theme) {
+    debugPrint('HomeScreen/Alerts: _buildAlertsSection called userId=$userId');
     return Column(
       children: [
         // 1. Personal Alerts Stream
@@ -56,6 +59,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
+            debugPrint(
+                'HomeScreen/Alerts/Personal: stream state=${snapshot.connectionState} '
+                'hasData=${snapshot.hasData} docsCount=${snapshot.data?.docs.length ?? 0} '
+                'error=${snapshot.error}');
             if (!snapshot.hasData) return const SizedBox.shrink();
             final docs = snapshot.data!.docs.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -67,13 +74,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 final data = doc.data() as Map<String, dynamic>;
                 final message = data['message'] as String? ?? '';
                 final type = data['type'] as String? ?? 'info';
-                
+                debugPrint(
+                    'HomeScreen/Alerts/Personal: rendering alert doc=${doc.id} '
+                    'type=$type message="${message.substring(0, message.length > 40 ? 40 : message.length)}"');
                 return _buildAlertBanner(
                   message: message,
                   type: type,
                   theme: theme,
                   onDismiss: () async {
+                    debugPrint('HomeScreen/Alerts/Personal: dismissing alert doc=${doc.id}');
                     await doc.reference.update({'read': true});
+                    debugPrint('HomeScreen/Alerts/Personal: alert marked read doc=${doc.id}');
                   },
                 );
               }).toList(),
@@ -88,6 +99,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               .orderBy('createdAt', descending: true)
               .snapshots(),
           builder: (context, snapshot) {
+            debugPrint(
+                'HomeScreen/Alerts/Global: stream state=${snapshot.connectionState} '
+                'hasData=${snapshot.hasData} docsCount=${snapshot.data?.docs.length ?? 0} '
+                'dismissedCount=${_dismissedGlobalAlertIds.length} '
+                'error=${snapshot.error}');
             if (!snapshot.hasData) return const SizedBox.shrink();
             final docs = snapshot.data!.docs.where((doc) {
               return !_dismissedGlobalAlertIds.contains(doc.id);
@@ -98,12 +114,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 final data = doc.data() as Map<String, dynamic>;
                 final message = data['message'] as String? ?? '';
                 final type = data['type'] as String? ?? 'info';
+                debugPrint(
+                    'HomeScreen/Alerts/Global: rendering alert doc=${doc.id} '
+                    'type=$type message="${message.substring(0, message.length > 40 ? 40 : message.length)}"');
 
                 return _buildAlertBanner(
                   message: message,
                   type: type,
                   theme: theme,
-                  onDismiss: () => _dismissGlobalAlert(doc.id),
+                  onDismiss: () {
+                    debugPrint('HomeScreen/Alerts/Global: user dismissed alert doc=${doc.id}');
+                    _dismissGlobalAlert(doc.id);
+                  },
                 );
               }).toList(),
             );
