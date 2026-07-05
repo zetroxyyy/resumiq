@@ -18,6 +18,7 @@ import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/ai_service.dart';
 import '../services/pdf_service.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class CoverLetterScreen extends ConsumerStatefulWidget {
   final String cvId;
@@ -150,14 +151,12 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().replaceAll('Exception:', '').trim()}'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        showAppSnackBar(context, 'Error: ${e.toString().replaceAll('Exception:', '').trim()}', type: SnackType.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -179,21 +178,16 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
         'updatedAt': Timestamp.now(),
       });
 
-      setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cover letter saved successfully!')),
-        );
+        showAppSnackBar(context, 'Cover letter saved successfully!', type: SnackType.success);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Save failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        showAppSnackBar(context, 'Save failed: $e', type: SnackType.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -229,30 +223,16 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
         'updatedAt': Timestamp.now(),
       });
 
-      setState(() => _isLoading = false);
-
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Saved to Documents: ${path.split('/').last}'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () {
-                Share.shareXFiles([XFile(path)], text: 'My Cover Letter');
-              },
-            ),
-          ),
-        );
+        showAppSnackBar(context, 'Saved to Documents: ${path.split('/').last}', type: SnackType.success);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF generation/upload failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        showAppSnackBar(context, 'PDF generation/upload failed: $e', type: SnackType.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }

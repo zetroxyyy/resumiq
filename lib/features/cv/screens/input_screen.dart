@@ -16,6 +16,7 @@ import '../services/photo_service.dart';
 import 'dart:async';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import '../../../core/providers/busy_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class InputScreen extends ConsumerStatefulWidget {
   const InputScreen({super.key});
@@ -53,13 +54,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         final sharedText = value.map((f) => f.path).join('\n');
         if (sharedText.isNotEmpty) {
           _infoController.text = sharedText;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Text received from sharing. Review and tap Generate CV.'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              duration: const Duration(seconds: 4),
-            )
-          );
+          showAppSnackBar(context, 'Text received from sharing. Review and tap Generate CV.', type: SnackType.info);
         }
       }
     }, onError: (err) {
@@ -74,12 +69,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
           setState(() {
             _infoController.text = sharedText;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Text received. Review and tap Generate CV.'),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-            )
-          );
+          showAppSnackBar(context, 'Text received. Review and tap Generate CV.', type: SnackType.info);
         }
       }
       ReceiveSharingIntent.instance.reset();
@@ -314,13 +304,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         uploadedUrl = await _photoService.uploadPhoto(bytesToUpload, user.uid);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Background removal unavailable ($reason). Using original photo.'),
-              backgroundColor: Colors.orange[800],
-              duration: const Duration(seconds: 5),
-            )
-          );
+          showAppSnackBar(context, 'Background removal unavailable ($reason). Using original photo.', type: SnackType.warning);
         }
       }
 
@@ -335,9 +319,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
       debugPrint('Photo upload error: $e');
       if (mounted) {
         setState(() => _isPhotoLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Photo upload failed: $e')),
-        );
+        showAppSnackBar(context, 'Photo upload failed: $e', type: SnackType.error);
       }
     } finally {
       ref.read(busyProvider.notifier).state = false;
@@ -449,9 +431,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     } catch (e) {
       debugPrint('CV generation error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Generation failed: $e')),
-        );
+        showAppSnackBar(context, 'Generation failed: $e', type: SnackType.error);
       }
     } finally {
       ref.read(busyProvider.notifier).state = false;
@@ -520,8 +500,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: isBusy
-              ? () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Please wait for $busyReason to finish')))
+              ? () => showAppSnackBar(context, 'Please wait for $busyReason to finish', type: SnackType.warning)
               : () => Navigator.pop(context),
         ),
       ),

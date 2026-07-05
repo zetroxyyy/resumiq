@@ -8,6 +8,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../models/payment_model.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class PaymentScreen extends ConsumerStatefulWidget {
   final String plan;
@@ -57,9 +58,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
     final user = ref.read(authProvider);
 
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User session not found.')),
-      );
+      showAppSnackBar(context, 'User session not found.', type: SnackType.error);
       setState(() => _isProcessing = false);
       return;
     }
@@ -104,9 +103,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
     } catch (e) {
       setState(() => _isProcessing = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit receipt: $e')),
-        );
+        showAppSnackBar(context, 'Failed to submit receipt: $e', type: SnackType.error);
       }
     }
   }
@@ -362,9 +359,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                                 icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
                                 onPressed: () {
                                   Clipboard.setData(ClipboardData(text: _merchantNumber));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('eSewa number copied')),
-                                  );
+                                  showAppSnackBar(context, 'eSewa number copied', type: SnackType.info);
                                 },
                               ),
                             ],
@@ -401,9 +396,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                                   icon: const Icon(Icons.copy_rounded, size: 20, color: Colors.deepPurpleAccent),
                                   onPressed: () {
                                     Clipboard.setData(ClipboardData(text: user?.email ?? ''));
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Gmail copied')),
-                                    );
+                                    showAppSnackBar(context, 'Gmail copied', type: SnackType.info);
                                   },
                                 ),
                               ],

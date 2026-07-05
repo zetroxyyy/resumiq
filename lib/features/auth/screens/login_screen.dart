@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../providers/auth_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,11 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authProvider.notifier).signInWithGoogle();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-          ),
-        );
+        showAppSnackBar(context, e.toString(), type: SnackType.error);
       }
     } finally {
       if (mounted) {

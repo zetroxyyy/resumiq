@@ -11,6 +11,7 @@ import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/photo_service.dart';
 import '../../../core/providers/busy_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 
 class CvEditorScreen extends ConsumerStatefulWidget {
@@ -283,16 +284,11 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   // ─── Save All ────────────────────────────────────────────────────────────────
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      )
-    );
+    showAppSnackBar(context, message, type: SnackType.error);
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAppSnackBar(context, msg, type: SnackType.info);
   }
 
   Future<void> _saveAll() async {
@@ -441,23 +437,13 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
           .update(updateMap);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('CV saved successfully'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          )
-        );
+        showAppSnackBar(context, 'CV saved successfully', type: SnackType.success);
         Navigator.of(context).pop(true); // Return true = refresh needed
       }
     } catch (e) {
       debugPrint('Save error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Save failed: $e'),
-            backgroundColor: Colors.red,
-          )
-        );
+        showAppSnackBar(context, 'Save failed: $e', type: SnackType.error);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -567,13 +553,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
         uploadedUrl = await _photoService.uploadPhoto(bytesToUpload, userId);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Background removal unavailable ($reason). Using original photo.'),
-              backgroundColor: Colors.orange[800],
-              duration: const Duration(seconds: 5),
-            )
-          );
+          showAppSnackBar(context, 'Background removal unavailable ($reason). Using original photo.', type: SnackType.warning);
         }
       }
 
@@ -1302,12 +1282,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                         controller.dispose();
                         _respControllers[workIdx].removeAt(j);
                       });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Responsibility deleted'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
+                      showAppSnackBar(context, 'Responsibility deleted', type: SnackType.info);
                     },
                     child: CustomTextField(
                       controller: controller,

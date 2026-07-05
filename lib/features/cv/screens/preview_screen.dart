@@ -26,6 +26,7 @@ import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
 import '../services/ai_service.dart';
 import '../../../core/providers/busy_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 
 class PreviewScreen extends ConsumerStatefulWidget {
@@ -168,17 +169,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       final path = await _pdfService.savePdfToDevice(pdfBytes, fullName);
 
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('Saved to Downloads: ${path.split('/').last}'),
-            action: SnackBarAction(
-              label: 'Share',
-              onPressed: () {
-                Share.shareXFiles([XFile(path)], text: 'Check out my resume!');
-              },
-            ),
-          ),
-        );
+        showAppSnackBar(context, 'Saved to Downloads: ${path.split('/').last}', type: SnackType.success);
       }
 
       // Asynchronously upload same PDF to Cloudinary
@@ -238,9 +229,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     } catch (e) {
       debugPrint('Doc upload error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Document upload failed: $e'), backgroundColor: Colors.red),
-        );
+        showAppSnackBar(context, 'Document upload failed: $e', type: SnackType.error);
       }
       return null;
     } finally {
@@ -839,9 +828,7 @@ class _EditCvBottomSheetState extends ConsumerState<_EditCvBottomSheet> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session expired. Please sign out and sign in again.')),
-        );
+        showAppSnackBar(context, 'Session expired. Please sign in and sign in again.', type: SnackType.error);
       }
       return;
     }
@@ -851,9 +838,7 @@ class _EditCvBottomSheetState extends ConsumerState<_EditCvBottomSheet> {
 
     if (userId.isEmpty || cvId.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error: User ID or CV ID is missing.')),
-        );
+        showAppSnackBar(context, 'Error: User ID or CV ID is missing.', type: SnackType.error);
       }
       return;
     }
@@ -903,16 +888,12 @@ class _EditCvBottomSheetState extends ConsumerState<_EditCvBottomSheet> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Changes saved successfully!')),
-        );
+        showAppSnackBar(context, 'Changes saved successfully!', type: SnackType.success);
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save changes: $e')),
-        );
+        showAppSnackBar(context, 'Failed to save changes: $e', type: SnackType.error);
       }
     } finally {
       if (mounted) {
@@ -1165,9 +1146,7 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
         setState(() => _isApplying = false);
         ref.read(busyProvider.notifier).state = false;
         ref.read(busyReasonProvider.notifier).state = null;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session expired. Please sign in again.'), backgroundColor: Colors.red),
-        );
+        showAppSnackBar(context, 'Session expired. Please sign in again.', type: SnackType.error);
       }
       return;
     }
@@ -1202,21 +1181,11 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
 
       if (mounted) {
         Navigator.pop(context); // Close bottom sheet
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('CV updated successfully'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-          ),
-        );
+        showAppSnackBar(context, 'CV updated successfully', type: SnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Edit failed: $e'),
-            backgroundColor: Colors.red,
-          )
-        );
+        showAppSnackBar(context, 'Edit failed: $e', type: SnackType.error);
       }
     } finally {
       if (mounted) {
@@ -1395,21 +1364,11 @@ class _HistoryBottomSheetState extends ConsumerState<_HistoryBottomSheet> {
       );
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Restored to version #${version.versionNumber}'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAppSnackBar(context, 'Restored to version #${version.versionNumber}', type: SnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Restore failed: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
+        showAppSnackBar(context, 'Restore failed: $e', type: SnackType.error);
       }
     } finally {
       if (mounted) setState(() => _restoringId = null);

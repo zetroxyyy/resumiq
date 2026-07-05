@@ -9,7 +9,11 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../models/user_model.dart';
 import '../../../models/payment_model.dart';
 import '../providers/admin_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
+
+
+enum AlertType { info, success, warning }
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key});
@@ -23,7 +27,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   String _searchQuery = '';
 
   final TextEditingController _announcementController = TextEditingController();
-  String _announcementType = 'info';
+  AlertType _selectedType = AlertType.info;
+  bool _isPendingOnly = true;
 
   @override
   void initState() {
@@ -62,10 +67,15 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.go('/home'),
           ),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: const Color(0xFFB8935B),
+            unselectedLabelColor: theme.colorScheme.secondary,
+            indicatorColor: const Color(0xFFB8935B),
+            tabs: const [
               Tab(icon: Icon(Icons.dashboard_outlined), text: 'Dashboard'),
-              Tab(icon: Icon(Icons.people_alt_outlined), text: 'Users'),
+              Tab(icon: Icon(Icons.people_outlined), text: 'Users'),
               Tab(icon: Icon(Icons.campaign_outlined), text: 'Alerts'),
               Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Payments'),
               Tab(icon: Icon(Icons.feedback_outlined), text: 'Feedback'),
@@ -278,11 +288,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                   } catch (e) {
                                     debugPrint(
                                         'AdminScreen/Feedback: update FAILED doc=${doc.id} err=$e');
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Update failed: $e')),
-                                      );
-                                    }
+                                     if (context.mounted) {
+                                       showAppSnackBar(context, 'Update failed: $e', type: SnackType.error);
+                                     }
                                   }
                                 },
                               ),
@@ -530,68 +538,82 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   Row(
-                    children: [
-                      const Text('Type: ', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
-                      DropdownButton<String>(
-                        value: _announcementType,
-                        dropdownColor: theme.colorScheme.surface,
-                        items: ['info', 'success', 'warning'].map((type) {
-                          return DropdownMenuItem<String>(
-                            value: type,
-                            child: Text(type.toUpperCase()),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _announcementType = val;
-                            });
-                          }
-                        },
-                      ),
-                      const Spacer(),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.publish),
-                        label: const Text('Publish'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
+                    children: AlertType.values.map((type) {
+                      final isSelected = _selectedType == type;
+                      final label = type.name.toUpperCase();
+                      Color activeColor;
+                      switch (type) {
+                        case AlertType.success: activeColor = const Color(0xFF4C9A6B); break;
+                        case AlertType.warning: activeColor = const Color(0xFFC48A3D); break;
+                        default: activeColor = const Color(0xFFB8935B);
+                      }
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedType = type),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected ? activeColor : Colors.transparent,
+                                border: Border.all(
+                                  color: isSelected ? activeColor : Colors.grey.shade600,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : Colors.grey.shade400,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        onPressed: () async {
-                          final msg = _announcementController.text.trim();
-                          if (msg.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please enter a message.')),
-                            );
-                            return;
-                          }
-
-                          try {
-                            debugPrint('Alert: writing global alert - message length ${msg.length}');
-                            final docRef = await FirebaseFirestore.instance.collection('alerts').add({
-                              'message': msg,
-                              'type': _announcementType,
-                              'createdAt': FieldValue.serverTimestamp(),
-                            });
-                            debugPrint('Alert: global alert written with id ${docRef.id}');
-
-                            _announcementController.clear();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Announcement published successfully.')),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed to publish: $e')),
-                              );
-                            }
-                          }
-                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.publish),
+                      label: const Text('Publish'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
                       ),
-                    ],
+                      onPressed: () async {
+                        final msg = _announcementController.text.trim();
+                        if (msg.isEmpty) {
+                          showAppSnackBar(context, 'Please enter a message.', type: SnackType.warning);
+                          return;
+                        }
+
+                        try {
+                          debugPrint('Alert: writing global alert - message length ${msg.length}');
+                          final docRef = await FirebaseFirestore.instance.collection('alerts').add({
+                            'message': msg,
+                            'type': _selectedType.name,
+                            'createdAt': FieldValue.serverTimestamp(),
+                          });
+                          debugPrint('Alert: global alert written with id ${docRef.id}');
+
+                          _announcementController.clear();
+                          if (mounted) {
+                            showAppSnackBar(context, 'Announcement published successfully.', type: SnackType.success);
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            showAppSnackBar(context, 'Failed to publish: $e', type: SnackType.error);
+                          }
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -680,15 +702,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                     try {
                                       await FirebaseFirestore.instance.collection('alerts').doc(doc.id).delete();
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Announcement deleted.')),
-                                        );
+                                        showAppSnackBar(context, 'Announcement deleted.', type: SnackType.info);
                                       }
                                     } catch (e) {
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Failed to delete: $e')),
-                                        );
+                                        showAppSnackBar(context, 'Failed to delete: $e', type: SnackType.error);
                                       }
                                     }
                                   },
@@ -711,26 +729,25 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Widget _buildPaymentsTab({required ThemeData theme}) {
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          const TabBar(
-            tabs: [
-              Tab(text: 'Pending'),
-              Tab(text: 'All'),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment<bool>(value: true, label: Text('Pending')),
+              ButtonSegment<bool>(value: false, label: Text('All')),
             ],
+            selected: {_isPendingOnly},
+            onSelectionChanged: (newSelection) {
+              setState(() => _isPendingOnly = newSelection.first);
+            },
           ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildPaymentsList(isPendingOnly: true),
-                _buildPaymentsList(isPendingOnly: false),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        Expanded(
+          child: _buildPaymentsList(isPendingOnly: _isPendingOnly),
+        ),
+      ],
     );
   }
 
@@ -846,7 +863,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _verifyPayment(PaymentModel payment) async {
-    final theme = Theme.of(context);
     try {
       final now = DateTime.now();
       final durationDays = payment.plan == 'yearly' ? 365 : 30;
@@ -907,25 +923,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'read': false,
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Pro granted to ${payment.userGmail}'),
-            backgroundColor: theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B),
-          ),
-        );
+       if (mounted) {
+        showAppSnackBar(context, 'Pro granted to ${payment.userGmail}', type: SnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: $e')),
-        );
+        showAppSnackBar(context, 'Verification failed: $e', type: SnackType.error);
       }
     }
   }
 
   Future<void> _rejectPayment(PaymentModel payment) async {
-    final theme = Theme.of(context);
     try {
       final now = DateTime.now();
 
@@ -963,19 +971,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'read': false,
       });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Payment rejected'),
-            backgroundColor: theme.colorScheme.error,
-          ),
-        );
+       if (mounted) {
+        showAppSnackBar(context, 'Payment rejected', type: SnackType.warning);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rejection failed: $e')),
-        );
+        showAppSnackBar(context, 'Rejection failed: $e', type: SnackType.error);
       }
     }
   }

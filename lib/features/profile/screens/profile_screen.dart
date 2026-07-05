@@ -12,6 +12,7 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/pro_badge.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 final userCvsCountProvider = StreamProvider.family<int, String>((ref, uid) {
   return FirebaseFirestore.instance
@@ -171,12 +172,7 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           OutlinedButton(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Manage Subscription coming soon!'),
-                                  backgroundColor: theme.colorScheme.primary,
-                                ),
-                              );
+                              showAppSnackBar(context, 'Manage Subscription coming soon!', type: SnackType.warning);
                             },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 44),
@@ -239,12 +235,7 @@ class ProfileScreen extends ConsumerWidget {
                             // checkForUpdate shows dialog if newer — if it doesn't,
                             // show a "you're on the latest version" snackbar
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Checking for updates...'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
+                          showAppSnackBar(context, 'Checking for updates...', type: SnackType.info);
                         },
                         onLongPress: () {
                           Clipboard.setData(
@@ -252,12 +243,7 @@ class ProfileScreen extends ConsumerWidget {
                               text: 'Resumiq v${AppConstants.appVersion}',
                             ),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Version copied'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
+                          showAppSnackBar(context, 'Version copied', type: SnackType.success);
                         },
                         child: ListTile(
                           leading: const Icon(Icons.info_outline),
@@ -380,15 +366,11 @@ class ProfileScreen extends ConsumerWidget {
                   });
 
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Thanks! We'll look into it.")),
-                    );
+                    showAppSnackBar(context, "Thanks! We'll look into it.", type: SnackType.success);
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to send feedback: $e')),
-                    );
+                    showAppSnackBar(context, 'Failed to send feedback: $e', type: SnackType.error);
                   }
                 }
               },

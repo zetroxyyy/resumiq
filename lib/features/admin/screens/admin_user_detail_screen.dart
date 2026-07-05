@@ -6,6 +6,7 @@ import '../../../core/widgets/gradient_background.dart';
 import '../../../models/user_model.dart';
 import '../../cv/models/cv_model.dart';
 import '../../../models/payment_model.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class AdminUserDetailScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -60,18 +61,11 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Changes saved'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAppSnackBar(context, 'Changes saved', type: SnackType.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update access control: $e')),
-        );
+        showAppSnackBar(context, 'Failed to update access control: $e', type: SnackType.error);
       }
     }
   }

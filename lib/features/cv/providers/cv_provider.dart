@@ -6,6 +6,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../models/cv_model.dart';
 import '../models/version_model.dart';
 import '../services/ai_service.dart';
+import '../../../core/utils/snackbar_helper.dart';
 
 class CvInputState {
   final String rawInput;
@@ -163,19 +164,7 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
       if (context.mounted) {
         // Pop GeneratingScreen and return to InputScreen
         context.go('/cv/input');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(cleanMessage),
-            backgroundColor: Colors.redAccent,
-            action: SnackBarAction(
-              label: 'Try Again',
-              textColor: Colors.white,
-              onPressed: () {
-                context.go('/cv/generating');
-              },
-            ),
-          ),
-        );
+        showAppSnackBar(context, cleanMessage, type: SnackType.error);
       }
     }
   }
