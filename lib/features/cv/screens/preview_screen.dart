@@ -652,21 +652,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                     }
                   },
                 ),
-                _buildBottomActionWithProBadge(
-                  icon: Icons.share,
-                  label: 'Share',
-                  isProOnly: true,
-                  isUserPro: user.isPro,
-                  onTap: () {
-                    if (user.isPro) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Sharing enabled for PRO members!')),
-                      );
-                    } else {
-                      _showUpgradePrompt('Resume Link Sharing');
-                    }
-                  },
-                ),
               ],
             ),
           ),
@@ -694,58 +679,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
             isLoading
                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 : Icon(icon, size: 28, color: Colors.white),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomActionWithProBadge({
-    required IconData icon,
-    required String label,
-    bool isLoading = false,
-    required bool isProOnly,
-    required bool isUserPro,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                isLoading
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Icon(icon, size: 28, color: Colors.white),
-                if (isProOnly && !isUserPro)
-                  Positioned(
-                    top: -4,
-                    right: -8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'PRO',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 7,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
             const SizedBox(height: 4),
             Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
           ],

@@ -21,7 +21,6 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
     const FeatureRow('Granular CV Editor & References', true, true),
     const FeatureRow('Full-resolution Photo (with BG removal)', false, true),
     const FeatureRow('Page Attachment Uploads (Passport, Citizenship, etc.)', false, true),
-    const FeatureRow('Link Sharing (with QR Code generation)', false, true),
   ];
 
   @override

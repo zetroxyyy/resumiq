@@ -97,15 +97,6 @@ class CvCard extends ConsumerWidget {
                   ),
                   Row(
                     children: [
-                      if (isPro)
-                        IconButton(
-                          icon: const Icon(Icons.share, size: 20, color: Colors.blueAccent),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sharing link copied to clipboard!')),
-                            );
-                          },
-                        ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
                         onPressed: () async {
