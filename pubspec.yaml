@@ -5,7 +5,7 @@ description: "Resumiq - AI CV Generator"
 publish_to: 'none'
 
 # Version
-version: 1.7.5+28
+version: 1.7.6+29
 
 environment:
   sdk: ^3.12.2

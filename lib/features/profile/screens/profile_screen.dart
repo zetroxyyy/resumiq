@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../app/theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/update_service.dart';
 import '../../../core/widgets/custom_button.dart';
@@ -30,7 +29,6 @@ class ProfileScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final user = ref.watch(authProvider);
-    final themeMode = ref.watch(themeModeProvider);
 
     if (user == null) {
       return const Scaffold(
@@ -216,17 +214,6 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      ListTile(
-                        leading: const Icon(Icons.brightness_6_outlined),
-                        title: const Text('Dark Mode'),
-                        trailing: Switch(
-                          value: themeMode == ThemeMode.dark,
-                          onChanged: (_) {
-                            ref.read(themeModeProvider.notifier).toggleTheme();
-                          },
-                        ),
-                      ),
-                      const Divider(height: 1),
                       // Interactive version tile: tap = check updates, long-press = copy version
                       GestureDetector(
                         onTap: () {
