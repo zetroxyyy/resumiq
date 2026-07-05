@@ -18,6 +18,7 @@ import '../features/payment/screens/upgrade_screen.dart';
 import '../features/payment/screens/payment_screen.dart';
 import '../features/admin/screens/admin_screen.dart';
 import '../features/admin/screens/admin_user_detail_screen.dart';
+import '../features/payment/screens/payment_history_screen.dart';
 
 // Listenable class to notify GoRouter when Auth state changes
 class RouterNotifier extends ChangeNotifier {
@@ -148,6 +149,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/payment-history',
+        builder: (context, state) => const PaymentHistoryScreen(),
       ),
       GoRoute(
         path: '/upgrade',

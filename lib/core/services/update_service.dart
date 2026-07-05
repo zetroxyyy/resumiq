@@ -77,6 +77,7 @@ class UpdateService {
 
   static void _showUpdateDialog(
       BuildContext context, String newVersion, String downloadUrl) {
+    final theme = Theme.of(context);
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -85,15 +86,24 @@ class UpdateService {
           // Prevent back-button dismiss
           canPop: false,
           child: AlertDialog(
+            backgroundColor: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.system_update_rounded,
-                    color: Colors.deepPurpleAccent),
-                SizedBox(width: 10),
-                Text('Update Available'),
+                const Icon(Icons.system_update_rounded,
+                    color: Color(0xFFB8935B)),
+                const SizedBox(width: 10),
+                Text(
+                  'Update Available',
+                  style: TextStyle(
+                    fontFamily: 'Fraunces',
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
               ],
             ),
             content: Column(
@@ -102,14 +112,18 @@ class UpdateService {
               children: [
                 Text(
                   'Version $newVersion is now available. Please update Resumiq to continue using all features.',
-                  style: const TextStyle(height: 1.5),
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    height: 1.5,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Current: v${AppConstants.appVersion}  →  Latest: v$newVersion',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white54,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -121,9 +135,12 @@ class UpdateService {
                   // Users can skip — they'll be reminded next launch
                   Navigator.of(dialogContext).pop();
                 },
-                child: const Text(
+                child: Text(
                   'Later',
-                  style: TextStyle(color: Colors.white38),
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
                 ),
               ),
               FilledButton.icon(
@@ -134,10 +151,17 @@ class UpdateService {
                         mode: LaunchMode.externalApplication);
                   }
                 },
-                icon: const Icon(Icons.download_rounded),
-                label: const Text('Update Now'),
+                icon: const Icon(Icons.download_rounded, color: Colors.white),
+                label: const Text(
+                  'Update Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Inter',
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.deepPurpleAccent,
+                  backgroundColor: const Color(0xFFB8935B),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

@@ -172,14 +172,14 @@ class ProfileScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           OutlinedButton(
                             onPressed: () {
-                              showAppSnackBar(context, 'Manage Subscription coming soon!', type: SnackType.warning);
+                              context.push('/profile/payment-history');
                             },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 44),
                               side: BorderSide(color: theme.colorScheme.outline),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: Text('Manage Subscription', style: TextStyle(color: theme.colorScheme.onSurface)),
+                            child: Text('Payment History', style: TextStyle(color: theme.colorScheme.onSurface)),
                           ),
                         ],
                         const SizedBox(height: 12),

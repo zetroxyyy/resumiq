@@ -71,47 +71,52 @@ class PdfService {
     bool isPro = false,
     DocumentOptions? options,
   }) async {
-    final results = await Future.wait([
-      downloadPhotoForPdf(cv.photoUrl),
-      options != null && options.includePassport && options.passportUrl != null
-        ? downloadPhotoForPdf(options.passportUrl) 
-        : Future.value(null),
-      options != null && options.includeCitizenshipFront && options.citizenshipFrontUrl != null
-        ? downloadPhotoForPdf(options.citizenshipFrontUrl) 
-        : Future.value(null),
-      options != null && options.includeCitizenshipBack && options.citizenshipBackUrl != null
-        ? downloadPhotoForPdf(options.citizenshipBackUrl) 
-        : Future.value(null),
-      options != null && options.includeBodyPhoto && options.bodyPhotoUrl != null
-        ? downloadPhotoForPdf(options.bodyPhotoUrl) 
-        : Future.value(null),
-    ]);
+    try {
+      final results = await Future.wait([
+        downloadPhotoForPdf(cv.photoUrl),
+        options != null && options.includePassport && options.passportUrl != null
+          ? downloadPhotoForPdf(options.passportUrl) 
+          : Future.value(null),
+        options != null && options.includeCitizenshipFront && options.citizenshipFrontUrl != null
+          ? downloadPhotoForPdf(options.citizenshipFrontUrl) 
+          : Future.value(null),
+        options != null && options.includeCitizenshipBack && options.citizenshipBackUrl != null
+          ? downloadPhotoForPdf(options.citizenshipBackUrl) 
+          : Future.value(null),
+        options != null && options.includeBodyPhoto && options.bodyPhotoUrl != null
+          ? downloadPhotoForPdf(options.bodyPhotoUrl) 
+          : Future.value(null),
+      ]);
 
-    final photoImage = results[0];
-    final passportImage = results[1];
-    final citFrontImage = results[2];
-    final citBackImage = results[3];
-    final bodyImage = results[4];
+      final photoImage = results[0];
+      final passportImage = results[1];
+      final citFrontImage = results[2];
+      final citBackImage = results[3];
+      final bodyImage = results[4];
 
-    final pdf = await normalTemplate(cv, photoImage: photoImage, isPro: isPro);
+      final pdf = await normalTemplate(cv, photoImage: photoImage, isPro: isPro);
 
-    // Appending document pages sequentially using the pre-downloaded images
-    if (options != null) {
-      if (options.includePassport && passportImage != null) {
-        pdf.addPage(_buildDocumentPage("PASSPORT COPY", passportImage));
+      // Appending document pages sequentially using the pre-downloaded images
+      if (options != null) {
+        if (options.includePassport && passportImage != null) {
+          pdf.addPage(_buildDocumentPage("PASSPORT COPY", passportImage));
+        }
+        if (options.includeCitizenshipFront && citFrontImage != null) {
+          pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - FRONT", citFrontImage));
+        }
+        if (options.includeCitizenshipBack && citBackImage != null) {
+          pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - BACK", citBackImage));
+        }
+        if (options.includeBodyPhoto && bodyImage != null) {
+          pdf.addPage(_buildDocumentPage("FULL BODY PHOTO", bodyImage));
+        }
       }
-      if (options.includeCitizenshipFront && citFrontImage != null) {
-        pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - FRONT", citFrontImage));
-      }
-      if (options.includeCitizenshipBack && citBackImage != null) {
-        pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - BACK", citBackImage));
-      }
-      if (options.includeBodyPhoto && bodyImage != null) {
-        pdf.addPage(_buildDocumentPage("FULL BODY PHOTO", bodyImage));
-      }
+
+      return pdf.save();
+    } catch (e, stack) {
+      debugPrint('PDF generation error: $e\n$stack');
+      throw Exception("Some details couldn't be displayed. Try editing your CV.");
     }
-
-    return pdf.save();
   }
 
   pw.Page _buildDocumentPage(String label, pw.ImageProvider image) {
@@ -148,7 +153,9 @@ class PdfService {
   Future<pw.Document> normalTemplate(CvModel cv, {pw.ImageProvider? photoImage, bool isPro = false}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
-    final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
+    final personalInfo = content['personalInfo'] is Map
+        ? Map<String, dynamic>.from(content['personalInfo'] as Map)
+        : <String, dynamic>{};
 
     // ── Page 1: Professional CV ──────────────────────────────────────────────
     final name = _str(personalInfo['fullName'], 'Applicant');
@@ -162,13 +169,13 @@ class PdfService {
     final website = _str(personalInfo['portfolio'] ?? personalInfo['website']);
     final summary = _str(content['summary']);
 
-    final educations = content['education'] as List? ?? [];
-    final experiences = content['workExperience'] as List? ?? [];
+    final educations = _list(content['education']);
+    final experiences = _list(content['workExperience']);
     final skills = content['skills'];
-    final certifications = content['certifications'] as List? ?? [];
-    final projects = content['projects'] as List? ?? [];
-    final achievements = content['achievements'] as List? ?? [];
-    final references = content['references'] as List? ?? [];
+    final certifications = _list(content['certifications']);
+    final projects = _list(content['projects']);
+    final achievements = _list(content['achievements']);
+    final references = _list(content['references']);
 
     final contactParts = [
       if (email.isNotEmpty) email,
@@ -305,7 +312,7 @@ class PdfService {
 
     // ── Page 2: Nepal Personal Info (conditional) ────────────────────────────
     if (_hasNepalInfo(personalInfo)) {
-      pdf.addPage(_buildNepalInfoPage(personalInfo));
+      pdf.addPage(_buildNepalInfoPage(personalInfo, skills));
     }
 
     return pdf;
@@ -328,8 +335,12 @@ class PdfService {
 
   /// Builds a plain-styled Nepal Personal Information page.
   /// Pure white background, pure black text, Helvetica only, no accent colors.
-  pw.Page _buildNepalInfoPage(Map<String, dynamic> info) {
+  pw.Page _buildNepalInfoPage(Map<String, dynamic> info, dynamic skills) {
     const black = PdfColor.fromInt(0xFF000000);
+
+    final languagesVal = skills is Map ? skills['languages'] : null;
+    final languagesList = _list(languagesVal);
+    final languagesStr = languagesList.map(_str).join(', ');
 
     final rows = [
       ['Full Name', info['fullName']],
@@ -341,6 +352,7 @@ class PdfService {
       ['Citizenship No', info['citizenshipNo']],
       ['Permanent Address', info['permanentAddress']],
       ['Temporary Address', info['temporaryAddress']],
+      if (languagesStr.isNotEmpty) ['Language Known', languagesStr],
     ].where((row) => _str(row[1]).isNotEmpty).toList();
 
     return pw.Page(
@@ -374,7 +386,7 @@ class PdfService {
                   pw.Padding(
                     padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: pw.Text(
-                      row[0] as String,
+                      _str(row[0]),
                       style: pw.TextStyle(
                         font: pw.Font.helveticaBold(),
                         fontSize: 9,
@@ -431,7 +443,7 @@ class PdfService {
     final start = _str(exp['startDate']);
     final end = _str(exp['endDate']);
     final period = [start, if (end.isNotEmpty) end].join(' – ');
-    final responsibilities = exp['responsibilities'] as List? ?? [];
+    final responsibilities = _list(exp['responsibilities']);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -525,7 +537,7 @@ class PdfService {
       return pw.Wrap(
         spacing: 8,
         runSpacing: 4,
-        children: (skills as List).map<pw.Widget>((s) {
+        children: _list(skills).map<pw.Widget>((s) {
           return pw.Container(
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: pw.BoxDecoration(
@@ -693,7 +705,9 @@ class PdfService {
 
   Future<Uint8List> generateCoverLetterPdf(CvModel cv, String text, {String? targetCompany}) async {
     final pdf = pw.Document();
-    final personalInfo = cv.generatedContent['personalInfo'] as Map<String, dynamic>? ?? {};
+    final personalInfo = cv.generatedContent['personalInfo'] is Map
+        ? Map<String, dynamic>.from(cv.generatedContent['personalInfo'] as Map)
+        : <String, dynamic>{};
     final name = _str(personalInfo['fullName'], 'Applicant');
     final email = _str(personalInfo['email']);
     final phone = _str(personalInfo['phone']);
@@ -805,6 +819,13 @@ class PdfService {
 
   List<dynamic> _list(dynamic value) {
     if (value is List) return value;
+    return [];
+  }
+
+  List<Map<String, dynamic>> _mapList(dynamic value) {
+    if (value is List) {
+      return value.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList();
+    }
     return [];
   }
 }
