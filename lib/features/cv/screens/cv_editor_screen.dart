@@ -40,6 +40,15 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   late TextEditingController _locationController;
   late TextEditingController _linkedInController;
   late TextEditingController _portfolioController;
+  late TextEditingController _fatherNameController;
+  late TextEditingController _motherNameController;
+  late TextEditingController _dateOfBirthBSController;
+  late TextEditingController _permanentAddressController;
+  late TextEditingController _temporaryAddressController;
+  late TextEditingController _sexController;
+  late TextEditingController _maritalStatusController;
+  late TextEditingController _citizenshipNoController;
+  late TextEditingController _referencesController;
 
   // ─── Summary ──────────────────────────────────────────────────────────────────
   late TextEditingController _summaryController;
@@ -93,7 +102,19 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
     _locationController = TextEditingController(text: personalInfo['location'] as String? ?? '');
     _linkedInController = TextEditingController(text: personalInfo['linkedIn'] as String? ?? '');
     _portfolioController = TextEditingController(text: personalInfo['portfolio'] as String? ?? '');
+    _fatherNameController = TextEditingController(text: personalInfo['fatherName'] as String? ?? '');
+    _motherNameController = TextEditingController(text: personalInfo['motherName'] as String? ?? '');
+    _dateOfBirthBSController = TextEditingController(text: personalInfo['dateOfBirthBS'] as String? ?? '');
+    _permanentAddressController = TextEditingController(text: personalInfo['permanentAddress'] as String? ?? '');
+    _temporaryAddressController = TextEditingController(text: personalInfo['temporaryAddress'] as String? ?? '');
+    _sexController = TextEditingController(text: personalInfo['sex'] as String? ?? '');
+    _maritalStatusController = TextEditingController(text: personalInfo['maritalStatus'] as String? ?? '');
+    _citizenshipNoController = TextEditingController(text: personalInfo['citizenshipNo'] as String? ?? '');
+    _referencesController = TextEditingController(text: content['references'] as String? ?? 'Available upon request');
     _summaryController = TextEditingController(text: content['summary'] as String? ?? '');
+    _summaryController.addListener(() {
+      if (mounted) setState(() {});
+    });
 
     _photoUrl = cv.photoUrl;
     _passportUrl = cv.passportUrl;
@@ -235,6 +256,15 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
     _locationController.dispose();
     _linkedInController.dispose();
     _portfolioController.dispose();
+    _fatherNameController.dispose();
+    _motherNameController.dispose();
+    _dateOfBirthBSController.dispose();
+    _permanentAddressController.dispose();
+    _temporaryAddressController.dispose();
+    _sexController.dispose();
+    _maritalStatusController.dispose();
+    _citizenshipNoController.dispose();
+    _referencesController.dispose();
     _summaryController.dispose();
     _disposeWorkControllers();
     _disposeEduControllers();
@@ -329,7 +359,15 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
         'phone': _phoneController.text.trim(),
         'location': _locationController.text.trim(),
         'linkedIn': _linkedInController.text.trim(),
-        'portfolio': '',
+        'portfolio': _portfolioController.text.trim(),
+        'fatherName': _fatherNameController.text.trim(),
+        'motherName': _motherNameController.text.trim(),
+        'dateOfBirthBS': _dateOfBirthBSController.text.trim(),
+        'permanentAddress': _permanentAddressController.text.trim(),
+        'temporaryAddress': _temporaryAddressController.text.trim(),
+        'sex': _sexController.text.trim(),
+        'maritalStatus': _maritalStatusController.text.trim(),
+        'citizenshipNo': _citizenshipNoController.text.trim(),
       },
       'summary': _summaryController.text.trim(),
       'workExperience': _workExperience,
@@ -338,7 +376,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
       'certifications': _certifications,
       'projects': _projects,
       'achievements': _achievements,
-      'references': 'Available upon request',
+      'references': _referencesController.text.trim().isNotEmpty ? _referencesController.text.trim() : 'Available upon request',
       'cvType': widget.cv.generatedContent['cvType'] ?? 'Normal',
       'score': widget.cv.generatedContent['score'] ?? 0,
       'scoreFeedback': widget.cv.generatedContent['scoreFeedback'] ?? [],
@@ -636,6 +674,54 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                       labelText: 'Portfolio URL',
                       prefixIcon: Icons.language,
                     ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _fatherNameController,
+                      labelText: "Father's Name",
+                      prefixIcon: Icons.family_restroom,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _motherNameController,
+                      labelText: "Mother's Name",
+                      prefixIcon: Icons.family_restroom,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _dateOfBirthBSController,
+                      labelText: 'Date of Birth (BS/AD)',
+                      prefixIcon: Icons.calendar_today_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _permanentAddressController,
+                      labelText: 'Permanent Address',
+                      prefixIcon: Icons.home_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _temporaryAddressController,
+                      labelText: 'Temporary Address',
+                      prefixIcon: Icons.home_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _sexController,
+                      labelText: 'Sex',
+                      prefixIcon: Icons.wc_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _maritalStatusController,
+                      labelText: 'Marital Status',
+                      prefixIcon: Icons.favorite_border,
+                    ),
+                    const SizedBox(height: 12),
+                    CustomTextField(
+                      controller: _citizenshipNoController,
+                      labelText: 'Citizenship No',
+                      prefixIcon: Icons.card_membership_outlined,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -650,6 +736,28 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                       controller: _summaryController,
                       labelText: 'Professional Summary',
                       maxLines: 6,
+                    ),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Text(
+                        '${_summaryController.text.length} characters',
+                        style: const TextStyle(fontSize: 12, color: Colors.white54),
+                      ),
+                    ),
+                    DashedBorderButton(
+                      onPressed: () => setState(() {
+                        _workExperience.add({'company': '', 'role': '', 'startDate': '', 'endDate': '', 'current': false, 'responsibilities': []});
+                        _workControllers.add({
+                          'company': TextEditingController(),
+                          'role': TextEditingController(),
+                          'startDate': TextEditingController(),
+                          'endDate': TextEditingController(),
+                        });
+                        _respControllers.add([]);
+                      }),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Add Work Experience', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -691,7 +799,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                   children: [
                     ..._buildEducationItems(theme),
                     const SizedBox(height: 8),
-                    OutlinedButton.icon(
+                    DashedBorderButton(
                       onPressed: () => setState(() {
                         _education.add({'institution': '', 'degree': '', 'field': '', 'startDate': '', 'endDate': '', 'grade': ''});
                         _eduControllers.add({
@@ -703,8 +811,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                           'grade': TextEditingController(),
                         });
                       }),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Education'),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Add Education', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -739,7 +847,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                   children: [
                     ..._buildCertificationItems(theme),
                     const SizedBox(height: 8),
-                    OutlinedButton.icon(
+                    DashedBorderButton(
                       onPressed: () => setState(() {
                         _certifications.add({'name': '', 'issuer': '', 'date': ''});
                         _certControllers.add({
@@ -748,8 +856,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                           'date': TextEditingController(),
                         });
                       }),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Certification'),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Add Certification', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -763,7 +871,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                   children: [
                     ..._buildProjectItems(theme),
                     const SizedBox(height: 8),
-                    OutlinedButton.icon(
+                    DashedBorderButton(
                       onPressed: () => setState(() {
                         _projects.add({'name': '', 'description': '', 'url': '', 'techStack': []});
                         _projControllers.add({
@@ -774,8 +882,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                         _projTechStacks.add([]);
                         _projTechInputs.add(TextEditingController());
                       }),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Project'),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Add Project', style: TextStyle(color: Colors.white)),
                     ),
                   ],
                 ),
@@ -789,13 +897,28 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                   children: [
                     ..._buildAchievementItems(theme),
                     const SizedBox(height: 8),
-                    OutlinedButton.icon(
+                    DashedBorderButton(
                       onPressed: () => setState(() {
                         _achievements.add('');
                         _achieveControllers.add(TextEditingController());
                       }),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Achievement'),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text('Add Achievement', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // ─── References ──────────────────────────────────────────────────
+                _buildSectionCard(
+                  theme: theme,
+                  title: 'References',
+                  icon: Icons.people_outline,
+                  children: [
+                    CustomTextField(
+                      controller: _referencesController,
+                      labelText: 'References',
+                      maxLines: 4,
                     ),
                   ],
                 ),
@@ -1056,7 +1179,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
             const SizedBox(height: 8),
             const Text('Responsibilities', style: TextStyle(fontSize: 12, color: Colors.white54, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            ..._buildResponsibilityItems(i, theme),
+            _buildResponsibilityItems(i, theme),
             TextButton.icon(
               onPressed: () => setState(() {
                 _respControllers[i].add(TextEditingController());
@@ -1070,30 +1193,63 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
     });
   }
 
-  List<Widget> _buildResponsibilityItems(int workIdx, ThemeData theme) {
-    return List.generate(_respControllers[workIdx].length, (j) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                controller: _respControllers[workIdx][j],
-                labelText: 'Responsibility ${j + 1}',
-                maxLines: 2,
-              ),
+  Widget _buildResponsibilityItems(int workIdx, ThemeData theme) {
+    return SizedBox(
+      height: _respControllers[workIdx].length * 75.0,
+      child: ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _respControllers[workIdx].length,
+        onReorder: (oldIndex, newIndex) {
+          setState(() {
+            if (oldIndex < newIndex) {
+              newIndex -= 1;
+            }
+            final item = _respControllers[workIdx].removeAt(oldIndex);
+            _respControllers[workIdx].insert(newIndex, item);
+          });
+        },
+        itemBuilder: (context, j) {
+          final controller = _respControllers[workIdx][j];
+          return Padding(
+            key: ValueKey(controller),
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                ReorderableDragStartListener(
+                  index: j,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(Icons.drag_handle, color: Colors.white54, size: 20),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onLongPress: () {
+                      setState(() {
+                        controller.dispose();
+                        _respControllers[workIdx].removeAt(j);
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Responsibility deleted'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    },
+                    child: CustomTextField(
+                      controller: controller,
+                      labelText: 'Responsibility ${j + 1} (long press to delete)',
+                      maxLines: 2,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Colors.redAccent),
-              onPressed: () => setState(() {
-                _respControllers[workIdx][j].dispose();
-                _respControllers[workIdx].removeAt(j);
-              }),
-            ),
-          ],
-        ),
-      );
-    });
+          );
+        },
+      ),
+    );
   }
 
   // ─── Education Items ──────────────────────────────────────────────────────────
@@ -1167,11 +1323,9 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
           spacing: 6,
           runSpacing: 4,
           children: [
-            ...List.generate(skills.length, (i) => Chip(
-              label: Text(skills[i], style: const TextStyle(fontSize: 12)),
-              deleteIcon: const Icon(Icons.close, size: 14),
-              onDeleted: () => onRemove(i),
-              visualDensity: VisualDensity.compact,
+            ...List.generate(skills.length, (i) => SkillsChip(
+              label: skills[i],
+              onLongPressDelete: () => onRemove(i),
             )),
           ],
         ),
@@ -1371,4 +1525,137 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
       );
     });
   }
+}
+
+// ─── Custom Skill Chip with Long Press Feedback ──────────────────────────────
+
+class SkillsChip extends StatefulWidget {
+  final String label;
+  final VoidCallback onLongPressDelete;
+
+  const SkillsChip({
+    super.key,
+    required this.label,
+    required this.onLongPressDelete,
+  });
+
+  @override
+  State<SkillsChip> createState() => _SkillsChipState();
+}
+
+class _SkillsChipState extends State<SkillsChip> {
+  bool _showRedBorder = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onLongPressDown: (_) {
+        setState(() {
+          _showRedBorder = true;
+        });
+      },
+      onLongPressCancel: () {
+        setState(() {
+          _showRedBorder = false;
+        });
+      },
+      onLongPressUp: () {
+        setState(() {
+          _showRedBorder = false;
+        });
+      },
+      onLongPress: () {
+        widget.onLongPressDelete();
+      },
+      child: Chip(
+        label: Text(widget.label, style: const TextStyle(fontSize: 12)),
+        visualDensity: VisualDensity.compact,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: _showRedBorder ? Colors.redAccent : Colors.white30,
+            width: _showRedBorder ? 1.5 : 1.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Custom Dashed Border Button ──────────────────────────────────────────────
+
+class DashedBorderButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  final Widget icon;
+  final Widget label;
+
+  const DashedBorderButton({
+    key,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: CustomPaint(
+        painter: _DashedRectPainter(color: theme.colorScheme.primary.withOpacity(0.6)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(width: 8),
+              label,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedRectPainter extends CustomPainter {
+  final Color color;
+
+  _DashedRectPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    const double dashWidth = 5;
+    const double dashSpace = 3;
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      const Radius.circular(12),
+    );
+    final path = Path()..addRRect(rrect);
+
+    final dashPath = Path();
+    double distance = 0.0;
+    for (final metric in path.computeMetrics()) {
+      while (distance < metric.length) {
+        dashPath.addPath(
+          metric.extractPath(distance, distance + dashWidth),
+          Offset.zero,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+    canvas.drawPath(dashPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -18,11 +18,11 @@ class _GeneratingScreenState extends ConsumerState<GeneratingScreen> {
 
   final List<String> _statusMessages = [
     'Reading your information...',
-    'Understanding your experience...',
-    'Structuring your career story...',
-    'Applying professional formatting...',
-    'Scoring your CV...',
-    'Almost done...',
+    'Understanding your background...',
+    'Building your professional profile...',
+    'Writing your experience...',
+    'Polishing the details...',
+    'Almost ready...',
   ];
 
   @override

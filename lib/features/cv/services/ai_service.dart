@@ -88,7 +88,6 @@ class AiService {
 
   Future<Map<String, dynamic>> generateCv({
     required String rawInput,
-    required String cvType,
   }) async {
     final prompt = '''Take a deep breath and work through this step by step.
 Quality matters more than speed. Write every bullet point as if the candidate's job offer depends on it.
@@ -146,8 +145,21 @@ STRICT RULES YOU MUST FOLLOW:
 15. Do not add sections that have zero data. If there are no 
     projects mentioned, leave the projects array empty — 
     do not invent projects.
-
-CV Type requested: $cvType
+16. Always include these additional fields in personalInfo
+    that are commonly needed for Nepal foreign work applications:
+    - fatherName: Father's full name (extract if mentioned, 
+      else leave empty)
+    - motherName: Mother's full name (extract if mentioned,
+      else leave empty)  
+    - dateOfBirthBS: Date of birth in Bikram Sambat 
+      (convert from AD if AD date provided, else leave empty)
+    - sex: Gender (Male/Female/Other)
+    - maritalStatus: Marital status (Single/Married/Divorced)
+    - citizenshipNo: Citizenship certificate number 
+      (extract if mentioned, else leave empty)
+    - permanentAddress: Full permanent address
+    - temporaryAddress: Temporary address (same as permanent 
+      if not specified differently)
 
 RAW INFORMATION FROM USER:
 $rawInput
@@ -163,7 +175,15 @@ Required JSON structure:
     "phone": "+977-XXXXXXXXXX",
     "location": "City, Country",
     "linkedIn": "",
-    "portfolio": ""
+    "portfolio": "",
+    "fatherName": "",
+    "motherName": "",
+    "dateOfBirthBS": "",
+    "sex": "Male/Female/Other",
+    "maritalStatus": "Single/Married/Divorced",
+    "citizenshipNo": "",
+    "permanentAddress": "",
+    "temporaryAddress": ""
   },
   "summary": "3-4 sentence professional summary in third person",
   "workExperience": [
@@ -206,8 +226,6 @@ Required JSON structure:
   ],
   "achievements": ["Specific achievement 1", "Specific achievement 2"],
   "references": "Available upon request",
-  "cvType": "$cvType",
-  "atsOptimized": false,
   "score": 0,
   "scoreFeedback": [
     "Specific suggestion 1",

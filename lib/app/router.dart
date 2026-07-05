@@ -9,7 +9,6 @@ import '../features/auth/screens/splash_screen.dart';
 import '../features/home/screens/home_screen.dart';
 import '../features/cv/screens/input_screen.dart';
 import '../features/cv/screens/generating_screen.dart';
-import '../features/cv/screens/template_selection_screen.dart';
 import '../features/cv/screens/preview_screen.dart';
 import '../features/cv/screens/cv_editor_screen.dart';
 import '../features/cv/models/cv_model.dart';
@@ -122,13 +121,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/cv/generating',
         builder: (context, state) => const GeneratingScreen(),
       ),
-      GoRoute(
-        path: '/cv/templates',
-        builder: (context, state) {
-          final cvId = state.uri.queryParameters['cvId'] ?? '';
-          return TemplateSelectionScreen(cvId: cvId);
-        },
-      ),
+
       GoRoute(
         path: '/cv/preview/:cvId',
         builder: (context, state) {

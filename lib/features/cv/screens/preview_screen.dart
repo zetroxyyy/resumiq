@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/loading_overlay.dart';
@@ -39,8 +41,14 @@ class PreviewScreen extends ConsumerStatefulWidget {
 class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   final PdfService _pdfService = const PdfService();
   final CloudinaryService _cloudinary = CloudinaryService();
+  final ImagePicker _imagePicker = ImagePicker();
   bool _isDownloading = false;
   bool _isAiSuggestionsExpanded = false;
+
+  bool _includePassport = false;
+  bool _includeCitizenshipFront = false;
+  bool _includeCitizenshipBack = false;
+  bool _includeBodyPhoto = false;
 
   void _showRenameDialog(String currentTitle, String userId) {
     final controller = TextEditingController(text: currentTitle);
@@ -88,7 +96,21 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       debugPrint('Generating PDF with photoUrl: ${cv.photoUrl}');
-      final pdfBytes = await _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: isPro);
+      final pdfBytes = await _pdfService.generatePdf(
+        cv,
+        'Normal',
+        isPro: isPro,
+        options: DocumentOptions(
+          includePassport: _includePassport,
+          passportUrl: cv.passportUrl,
+          includeCitizenshipFront: _includeCitizenshipFront,
+          citizenshipFrontUrl: cv.citizenshipFrontUrl,
+          includeCitizenshipBack: _includeCitizenshipBack,
+          citizenshipBackUrl: cv.citizenshipBackUrl,
+          includeBodyPhoto: _includeBodyPhoto,
+          bodyPhotoUrl: cv.bodyPhotoUrl,
+        ),
+      );
       final fullName = cv.generatedContent['personalInfo']?['fullName'] as String? ?? 'User';
       final path = await _pdfService.savePdfToDevice(pdfBytes, fullName);
 
@@ -125,6 +147,120 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         setState(() => _isDownloading = false);
       }
     }
+  }
+
+  Future<String?> _pickAndUploadDocument(String userId, String fieldName) async {
+    try {
+      final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (picked == null) return null;
+      
+      setState(() {
+        _isDownloading = true;
+      });
+
+      final bytes = await File(picked.path).readAsBytes();
+      final url = await _cloudinary.uploadBytes(
+        bytes: bytes,
+        folder: 'resumiq/users/$userId/documents',
+        extension: 'jpg',
+      );
+      
+      return url;
+    } catch (e) {
+      debugPrint('Doc upload error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Document upload failed: $e'), backgroundColor: Colors.red),
+      );
+      return null;
+    } finally {
+      setState(() {
+        _isDownloading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleDocument(CvModel cv, String userId, String fieldName, bool val) async {
+    if (!val) {
+      setState(() {
+        if (fieldName == 'passportUrl') _includePassport = false;
+        if (fieldName == 'citizenshipFrontUrl') _includeCitizenshipFront = false;
+        if (fieldName == 'citizenshipBackUrl') _includeCitizenshipBack = false;
+        if (fieldName == 'bodyPhotoUrl') _includeBodyPhoto = false;
+      });
+      return;
+    }
+
+    String? currentUrl;
+    if (fieldName == 'passportUrl') currentUrl = cv.passportUrl;
+    if (fieldName == 'citizenshipFrontUrl') currentUrl = cv.citizenshipFrontUrl;
+    if (fieldName == 'citizenshipBackUrl') currentUrl = cv.citizenshipBackUrl;
+    if (fieldName == 'bodyPhotoUrl') currentUrl = cv.bodyPhotoUrl;
+
+    if (currentUrl != null && currentUrl.isNotEmpty) {
+      setState(() {
+        if (fieldName == 'passportUrl') _includePassport = true;
+        if (fieldName == 'citizenshipFrontUrl') _includeCitizenshipFront = true;
+        if (fieldName == 'citizenshipBackUrl') _includeCitizenshipBack = true;
+        if (fieldName == 'bodyPhotoUrl') _includeBodyPhoto = true;
+      });
+      return;
+    }
+
+    final uploadedUrl = await _pickAndUploadDocument(userId, fieldName);
+    if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('cvs')
+          .doc(cv.id)
+          .update({fieldName: uploadedUrl});
+
+      setState(() {
+        if (fieldName == 'passportUrl') _includePassport = true;
+        if (fieldName == 'citizenshipFrontUrl') _includeCitizenshipFront = true;
+        if (fieldName == 'citizenshipBackUrl') _includeCitizenshipBack = true;
+        if (fieldName == 'bodyPhotoUrl') _includeBodyPhoto = true;
+      });
+      
+      ref.invalidate(cvDetailProvider(cv.id));
+    }
+  }
+
+  Widget _buildDocumentPagesSection(CvModel cv, String userId) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '📄 Document Pages',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _buildDocToggle("Passport Copy", _includePassport, (val) => _toggleDocument(cv, userId, 'passportUrl', val), cv.passportUrl),
+            _buildDocToggle("Citizenship Front", _includeCitizenshipFront, (val) => _toggleDocument(cv, userId, 'citizenshipFrontUrl', val), cv.citizenshipFrontUrl),
+            _buildDocToggle("Citizenship Back", _includeCitizenshipBack, (val) => _toggleDocument(cv, userId, 'citizenshipBackUrl', val), cv.citizenshipBackUrl),
+            _buildDocToggle("Full Body Photo", _includeBodyPhoto, (val) => _toggleDocument(cv, userId, 'bodyPhotoUrl', val), cv.bodyPhotoUrl),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocToggle(String label, bool value, ValueChanged<bool> onChanged, String? url) {
+    final theme = Theme.of(context);
+    return SwitchListTile(
+      title: Text(label),
+      subtitle: url != null && url.isNotEmpty
+          ? Text('Uploaded ✓', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12))
+          : const Text('Not uploaded yet (tap to upload)', style: TextStyle(fontSize: 12)),
+      value: value,
+      onChanged: onChanged,
+      activeColor: theme.colorScheme.primary,
+    );
   }
 
 
@@ -248,64 +384,110 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                 Column(
                   children: [
                     Expanded(
-                      child: PdfPreview(
-                        build: (format) {
-                          debugPrint('Generating PDF with photoUrl: ${cv.photoUrl}');
-                          return _pdfService.generatePdf(cv, widget.templateName ?? cv.template, isPro: user.isPro);
-                        },
-                        useActions: false,
-                        canChangePageFormat: false,
-                        loadingWidget: const Center(child: CircularProgressIndicator()),
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: PdfPreview(
+                          build: (format) {
+                            debugPrint('Generating PDF with photoUrl: ${cv.photoUrl}');
+                            return _pdfService.generatePdf(
+                              cv,
+                              'Normal',
+                              isPro: user.isPro,
+                              options: DocumentOptions(
+                                includePassport: _includePassport,
+                                passportUrl: cv.passportUrl,
+                                includeCitizenshipFront: _includeCitizenshipFront,
+                                citizenshipFrontUrl: cv.citizenshipFrontUrl,
+                                includeCitizenshipBack: _includeCitizenshipBack,
+                                citizenshipBackUrl: cv.citizenshipBackUrl,
+                                includeBodyPhoto: _includeBodyPhoto,
+                                bodyPhotoUrl: cv.bodyPhotoUrl,
+                              ),
+                            );
+                          },
+                          canChangeOrientation: false,
+                          canChangePageFormat: false,
+                          canDebug: false,
+                          allowPrinting: false,
+                          allowSharing: false,
+                          maxPageWidth: 700,
+                          initialPageFormat: PdfPageFormat.a4,
+                          scrollViewDecoration: const BoxDecoration(
+                            color: Colors.transparent,
+                          ),
+                          pdfPreviewPageDecoration: const BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          useActions: false,
+                          loadingWidget: const Center(child: CircularProgressIndicator()),
+                        ),
                       ),
                     ),
 
-                    // Collapsible AI suggestions suggestions
-                    if (cv.scoreFeedback.isNotEmpty) ...[
-                      Card(
-                        margin: const EdgeInsets.all(12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: ExpansionTile(
-                          initiallyExpanded: _isAiSuggestionsExpanded,
-                          onExpansionChanged: (expanded) {
-                            setState(() {
-                              _isAiSuggestionsExpanded = expanded;
-                            });
-                          },
-                          leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
-                          title: const Text(
-                            '💡 AI Suggestions',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                    // Bottom Scrollable Content Area (Toggles & AI suggestions)
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: cv.scoreFeedback
-                                    .map((feed) => Padding(
-                                          padding: const EdgeInsets.only(bottom: 8.0),
-                                          child: Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              const Icon(Icons.check_circle_outline,
-                                                  size: 18, color: Colors.greenAccent),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  feed,
-                                                  style: const TextStyle(color: Colors.white70, height: 1.4),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ))
-                                    .toList(),
+                            _buildDocumentPagesSection(cv, user.uid),
+                            if (cv.scoreFeedback.isNotEmpty)
+                              Card(
+                                margin: const EdgeInsets.all(12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                child: ExpansionTile(
+                                  initiallyExpanded: _isAiSuggestionsExpanded,
+                                  onExpansionChanged: (expanded) {
+                                    setState(() {
+                                      _isAiSuggestionsExpanded = expanded;
+                                    });
+                                  },
+                                  leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
+                                  title: const Text(
+                                    '💡 AI Suggestions',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: cv.scoreFeedback
+                                            .map((feed) => Padding(
+                                                  padding: const EdgeInsets.only(bottom: 8.0),
+                                                  child: Row(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      const Icon(Icons.check_circle_outline,
+                                                          size: 18, color: Colors.greenAccent),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          feed,
+                                                          style: const TextStyle(color: Colors.white70, height: 1.4),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ))
+                                            .toList(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
                           ],
                         ),
                       ),
-                    ],
+                    ),
 
                     // Action panel
                     Container(

@@ -12,6 +12,8 @@ import '../../../core/widgets/pulsing_mic_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/cv_provider.dart';
 import '../services/photo_service.dart';
+import 'dart:async';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 class InputScreen extends ConsumerStatefulWidget {
   const InputScreen({super.key});
@@ -24,7 +26,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   final _infoController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  String _selectedFormat = 'Normal';
   String? _inlineError;
 
   // Photo upload state
@@ -33,15 +34,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   String? _photoUrl;
   bool _isPhotoLoading = false;
 
-  final List<String> _formats = [
-    'Normal',
-    'Modern',
-    'Nepal-Saudi',
-    'Nepal-Qatar',
-    'Nepal-Malaysia',
-    'Nepal-Japan',
-    'Nepal-South Korea',
-  ];
+  StreamSubscription? _sharingSubscription;
 
   final SpeechToText _speech = SpeechToText();
   bool _isListeningInfo = false;
@@ -51,6 +44,44 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   void initState() {
     super.initState();
     _checkPermission();
+
+    // Listen to sharing intents when app is in memory
+    _sharingSubscription = ReceiveSharingIntent.instance.getMediaStream().listen((List<SharedMediaFile> value) {
+      if (value.isNotEmpty && mounted) {
+        final sharedText = value.map((f) => f.path).join('\n');
+        if (sharedText.isNotEmpty) {
+          _infoController.text = sharedText;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Text received from sharing. Review and tap Generate CV.'),
+              backgroundColor: Color(0xFF6C63FF),
+              duration: Duration(seconds: 4),
+            )
+          );
+        }
+      }
+    }, onError: (err) {
+      debugPrint('Sharing error: $err');
+    });
+
+    // Check sharing intent that opened the app
+    ReceiveSharingIntent.instance.getInitialMedia().then((List<SharedMediaFile> value) {
+      if (value.isNotEmpty && mounted) {
+        final sharedText = value.map((f) => f.path).join('\n');
+        if (sharedText.isNotEmpty) {
+          setState(() {
+            _infoController.text = sharedText;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Text received. Review and tap Generate CV.'),
+              backgroundColor: Color(0xFF6C63FF),
+            )
+          );
+        }
+      }
+      ReceiveSharingIntent.instance.reset();
+    });
   }
 
   Future<void> _checkPermission() async {
@@ -170,6 +201,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   void dispose() {
     _infoController.dispose();
     _speech.stop();
+    _sharingSubscription?.cancel();
     super.dispose();
   }
 
@@ -243,6 +275,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         userId: userId,
       );
       if (mounted) {
+        ref.read(cvGenerationProvider.notifier).setPhotoUrl(result.url);
         setState(() {
           _photoUrl = result.url;
           _isPhotoLoading = false;
@@ -354,7 +387,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     // 3. Save input values to Riverpod provider & route to Generating screen
     ref.read(cvInputProvider.notifier).state = CvInputState(
       rawInput: rawInput,
-      format: _selectedFormat,
       photoUrl: _photoUrl,
     );
 
@@ -579,49 +611,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ],
 
-                // Section: CV Format
-                const SizedBox(height: 24),
-                Text(
-                  'CV Format',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 48,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _formats.length,
-                    itemBuilder: (context, index) {
-                      final format = _formats[index];
-                      final isSelected = _selectedFormat == format;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(format),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _selectedFormat = format;
-                              });
-                            }
-                          },
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          selectedColor: theme.colorScheme.primary,
-                          backgroundColor: Colors.white.withOpacity(0.05),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+
 
                 // Generate CV button
                 const SizedBox(height: 24),
