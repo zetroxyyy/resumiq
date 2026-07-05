@@ -89,6 +89,9 @@ class AiService {
   Future<Map<String, dynamic>> generateCv({
     required String rawInput,
   }) async {
+    if (rawInput.trim().length < 50) {
+      throw Exception('Please provide more information (at least 50 characters).');
+    }
     final prompt = '''Take a deep breath and work through this step by step.
 Quality matters more than speed. Write every bullet point as if the candidate's job offer depends on it.
 

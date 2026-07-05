@@ -3,8 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/services/fcm_service.dart';
 import '../../../models/user_model.dart';
+
 
 // Provides Stream of Firebase auth state changes
 final firebaseAuthProvider = Provider<fb.FirebaseAuth>((ref) {
@@ -40,6 +43,7 @@ class AuthNotifier extends StateNotifier<UserModel?> {
   final fb.FirebaseAuth _auth;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   StreamSubscription<DocumentSnapshot>? _userDocSubscription;
+  bool _fcmInitialized = false;
 
   AuthNotifier(this._auth) : super(null) {
     // Initial fetch if already logged in at startup
@@ -47,6 +51,14 @@ class AuthNotifier extends StateNotifier<UserModel?> {
   }
 
   bool get isAdmin => state?.email == AppConstants.adminEmail;
+
+  void _initializeFcm() {
+    if (_fcmInitialized) return;
+    _fcmInitialized = true;
+    FcmService.initialize().catchError((e) {
+      debugPrint('FCM initialization error: $e');
+    });
+  }
 
   Future<void> handleFirebaseUser(fb.User? fbUser) async {
     _userDocSubscription?.cancel();
@@ -56,6 +68,9 @@ class AuthNotifier extends StateNotifier<UserModel?> {
       return;
       // Do not try to sync database if the user is null
     }
+
+    _initializeFcm();
+
 
     // Set up real-time sync with Firestore user document
     final docRef = _db.collection('users').doc(fbUser.uid);

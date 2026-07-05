@@ -9,6 +9,8 @@ import '../../../core/widgets/loading_overlay.dart';
 import '../models/cv_model.dart';
 import '../providers/cv_provider.dart';
 import '../services/photo_service.dart';
+import '../../../core/providers/busy_provider.dart';
+
 
 class CvEditorScreen extends ConsumerStatefulWidget {
   final String cvId;
@@ -293,6 +295,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   }
 
   Future<void> _saveAll() async {
+    if (ref.read(busyProvider)) return;
+
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null || userId.isEmpty) {
       _showError('Not signed in. Please sign out and sign in again.');
@@ -304,6 +308,10 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
       _showError('CV ID missing. Please go back and try again.');
       return;
     }
+
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Saving CV changes...';
+    setState(() => _isSaving = true);
 
     // Sync local state list variables with text controllers before saving
     _workExperience = List.generate(_workControllers.length, (i) {
@@ -385,8 +393,6 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
 
     debugPrint('Saving edit: userId=$userId cvId=$cvId');
 
-    setState(() => _isSaving = true);
-
     try {
       // Save current version first
       final versionsRef = FirebaseFirestore.instance
@@ -454,6 +460,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
     }
   }
 
@@ -563,6 +571,8 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cvAsync = ref.watch(cvDetailProvider(widget.cvId));
+    final isBusy = ref.watch(busyProvider);
+    final busyReason = ref.watch(busyReasonProvider);
 
     return cvAsync.when(
       data: (cv) {
@@ -602,7 +612,7 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
               title: const Text('Edit CV'),
               actions: [
                 TextButton.icon(
-                  onPressed: _isSaving ? null : _saveAll,
+                  onPressed: (_isSaving || isBusy) ? null : _saveAll,
                   icon: _isSaving
                       ? const SizedBox(
                           width: 16, height: 16,
@@ -618,9 +628,22 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
                 const SizedBox(width: 8),
               ],
             ),
-            body: ListView(
-              padding: const EdgeInsets.all(12),
+            body: Column(
               children: [
+                if (isBusy) ...[
+                  const LinearProgressIndicator(minHeight: 2),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                    child: Text(
+                      busyReason ?? 'Please wait...',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ),
+                ],
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(12),
+                    children: [
                 // ─── Profile Photo Card ───────────────────────────────────────
                 _buildPhotoCard(theme),
                 const SizedBox(height: 12),
@@ -927,6 +950,9 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
 
 
                 const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

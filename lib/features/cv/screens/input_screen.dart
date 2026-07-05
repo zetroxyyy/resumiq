@@ -14,6 +14,7 @@ import '../providers/cv_provider.dart';
 import '../services/photo_service.dart';
 import 'dart:async';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
+import '../../../core/providers/busy_provider.dart';
 
 class InputScreen extends ConsumerStatefulWidget {
   const InputScreen({super.key});
@@ -207,7 +208,8 @@ class _InputScreenState extends ConsumerState<InputScreen> {
 
   // ─── Photo Upload Methods ────────────────────────────────────────────────────
 
-  Future<void> _pickPhoto() async {
+  Future<void> _handlePhotoUpload() async {
+    if (ref.read(busyProvider)) return; // block if already busy
     final user = ref.read(authProvider);
     if (user == null) return;
 
@@ -248,6 +250,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 title: const Text('Remove Photo', style: TextStyle(color: Colors.redAccent)),
                 onTap: () {
                   setState(() => _photoUrl = null);
+                  ref.read(cvGenerationProvider.notifier).setPhotoUrl('');
                   Navigator.pop(ctx);
                 },
               ),
@@ -263,16 +266,26 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     final picked = await _imagePicker.pickImage(source: source, imageQuality: 90);
     if (picked == null) return;
 
-    await _processPhoto(File(picked.path), user.uid);
-  }
-
-  Future<void> _processPhoto(File imageFile, String userId) async {
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Uploading photo...';
     setState(() => _isPhotoLoading = true);
-
     try {
+      final imageFile = File(picked.path);
+      // STEP 2 — Defensive validation
+      if (!await imageFile.exists()) {
+        throw Exception('Image file not found. Please try picking again.');
+      }
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Image file is empty. Please try a different photo.');
+      }
+      if (fileSize > 10 * 1024 * 1024) {
+        throw Exception('Image too large. Please use a smaller photo.');
+      }
+
       final result = await _photoService.processAndUploadPhoto(
         imageFile: imageFile,
-        userId: userId,
+        userId: user.uid,
       );
       if (mounted) {
         ref.read(cvGenerationProvider.notifier).setPhotoUrl(result.url);
@@ -290,78 +303,88 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         }
       }
     } catch (e) {
+      debugPrint('Photo upload error: $e');
       if (mounted) {
         setState(() => _isPhotoLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Photo upload failed: $e')),
         );
       }
+    } finally {
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
     }
   }
 
   Widget _buildPhotoUploadRow() {
+    final isBusy = ref.watch(busyProvider);
     return GestureDetector(
-      onTap: _isPhotoLoading ? null : _pickPhoto,
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.white10,
-                backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-                child: _photoUrl == null
-                    ? const Icon(Icons.person, size: 36, color: Colors.white38)
-                    : null,
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: _isPhotoLoading
-                      ? const Padding(
-                          padding: EdgeInsets.all(4),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                        )
-                      : const Icon(Icons.camera_alt, size: 14, color: Colors.black),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      onTap: isBusy ? null : _handlePhotoUpload,
+      child: Opacity(
+        opacity: isBusy ? 0.5 : 1.0,
+        child: Row(
+          children: [
+            Stack(
               children: [
-                Text(
-                  _photoUrl != null ? 'Photo added ✓' : 'Add your photo (optional)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: _photoUrl != null
-                        ? Theme.of(context).colorScheme.primary
-                        : Colors.white,
-                  ),
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.white10,
+                  backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
+                  child: _photoUrl == null
+                      ? const Icon(Icons.person, size: 36, color: Colors.white38)
+                      : null,
                 ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Background will be removed automatically',
-                  style: TextStyle(fontSize: 12, color: Colors.white54),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _isPhotoLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                          )
+                        : const Icon(Icons.camera_alt, size: 14, color: Colors.black),
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _photoUrl != null ? 'Photo added ✓' : 'Add your photo (optional)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _photoUrl != null
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Background will be removed automatically',
+                    style: TextStyle(fontSize: 12, color: Colors.white54),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _validateAndSubmit() {
+  Future<void> _handleGenerate() async {
+    if (ref.read(busyProvider)) return;
+    
     setState(() {
       _inlineError = null;
     });
@@ -384,13 +407,27 @@ class _InputScreenState extends ConsumerState<InputScreen> {
       return;
     }
 
-    // 3. Save input values to Riverpod provider & route to Generating screen
-    ref.read(cvInputProvider.notifier).state = CvInputState(
-      rawInput: rawInput,
-      photoUrl: _photoUrl,
-    );
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Generating CV...';
+    try {
+      // 3. Save input values to Riverpod provider & route to Generating screen
+      ref.read(cvInputProvider.notifier).state = CvInputState(
+        rawInput: rawInput,
+        photoUrl: _photoUrl,
+      );
 
-    context.go('/cv/generating');
+      context.go('/cv/generating');
+    } catch (e) {
+      debugPrint('CV generation error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Generation failed: $e')),
+        );
+      }
+    } finally {
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
+    }
   }
 
   void _showLimitBottomSheet() {
@@ -445,185 +482,239 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isBusy = ref.watch(busyProvider);
+    final busyReason = ref.watch(busyReasonProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Build Your CV'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => context.go('/home'),
+          onPressed: isBusy
+              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Please wait for $busyReason to finish')))
+              : () => Navigator.pop(context),
         ),
       ),
       body: GradientBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Microphone permission card
-                if (!_hasMicPermission) ...[
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Row(
-                        children: [
-                          const Text('🎤', style: TextStyle(fontSize: 24)),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text(
-                              'Enable microphone to use voice typing',
-                              style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+        child: Column(
+          children: [
+            if (isBusy) ...[
+              const LinearProgressIndicator(minHeight: 2),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                child: Text(
+                  busyReason ?? 'Please wait...',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ),
+            ],
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Microphone permission card
+                      if (!_hasMicPermission) ...[
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Row(
+                              children: [
+                                const Text('🎤', style: TextStyle(fontSize: 24)),
+                                const SizedBox(width: 12),
+                                const Expanded(
+                                  child: Text(
+                                    'Enable microphone to use voice typing',
+                                    style: TextStyle(fontWeight: FontWeight.w500, color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                  ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: theme.colorScheme.primary,
+                                    foregroundColor: Colors.black,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  onPressed: _requestPermission,
+                                  child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: theme.colorScheme.primary,
-                              foregroundColor: Colors.black,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        ),
+                      ],
+
+                      // Photo upload row
+                      _buildPhotoUploadRow(),
+                      const SizedBox(height: 24),
+
+                      // Section: Your Information
+                      Text(
+                        'Your Information',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Dump everything here — your name, work history, education, skills, achievements... Don't worry about formatting or structure.",
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white60,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Voice typing label + mic button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Voice Typing',
+                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                          ),
+                          Row(
+                            children: [
+                              if (_isListeningInfo)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 8.0),
+                                  child: ListeningLabel(),
+                                ),
+                              PulsingMicButton(
+                                isListening: _isListeningInfo,
+                                onTap: () {
+                                  _handleMicAction(() {
+                                    if (_isListeningInfo) {
+                                      _stopListening(onStop: () => setState(() => _isListeningInfo = false));
+                                    } else {
+                                      setState(() => _isListeningInfo = true);
+                                      _startListening(
+                                        controller: _infoController,
+                                        onStop: () => setState(() => _isListeningInfo = false),
+                                      );
+                                    }
+                                  });
+                                },
                               ),
-                            ),
-                            onPressed: _requestPermission,
-                            child: const Text('Enable', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: 12),
 
-                // Photo upload row
-                _buildPhotoUploadRow(),
-                const SizedBox(height: 24),
-
-                // Section: Your Information
-                Text(
-                  'Your Information',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Dump everything here — your name, work history, education, skills, achievements... Don't worry about formatting or structure.",
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white60,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Voice typing label + mic button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Voice Typing',
-                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-                    ),
-                    Row(
-                      children: [
-                        if (_isListeningInfo)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 8.0),
-                            child: ListeningLabel(),
-                          ),
-                        PulsingMicButton(
-                          isListening: _isListeningInfo,
-                          onTap: () {
-                            _handleMicAction(() {
-                              if (_isListeningInfo) {
-                                _stopListening(onStop: () => setState(() => _isListeningInfo = false));
-                              } else {
-                                setState(() => _isListeningInfo = true);
-                                _startListening(
-                                  controller: _infoController,
-                                  onStop: () => setState(() => _isListeningInfo = false),
-                                );
+                      // Large multiline text field
+                      Stack(
+                        children: [
+                          TextFormField(
+                            controller: _infoController,
+                            minLines: 6,
+                            maxLines: 12,
+                            keyboardType: TextInputType.multiline,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: 'Type your experiences here...',
+                              hintStyle: const TextStyle(color: Colors.white30),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: _inlineError != null ? Colors.redAccent : Colors.white10,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(
+                                  color: _inlineError != null ? Colors.redAccent : theme.colorScheme.primary,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.all(16.0),
+                            ),
+                            onChanged: (text) {
+                              if (_inlineError != null && text.trim().length >= 50) {
+                                setState(() => _inlineError = null);
                               }
-                            });
-                          },
+                              setState(() {}); // Repaint char counter
+                            },
+                          ),
+                          Positioned(
+                            bottom: 12,
+                            right: 12,
+                            child: Text(
+                              '${_infoController.text.length} chars',
+                              style: TextStyle(
+                                color: _infoController.text.length < 50 ? Colors.white38 : Colors.greenAccent,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_inlineError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _inlineError!,
+                          style: const TextStyle(color: Colors.redAccent, fontSize: 13),
                         ),
                       ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
 
-                // Large multiline text field
-                Stack(
-                  children: [
-                    TextFormField(
-                      controller: _infoController,
-                      minLines: 6,
-                      maxLines: 12,
-                      keyboardType: TextInputType.multiline,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: 'Type your experiences here...',
-                        hintStyle: const TextStyle(color: Colors.white30),
-                        filled: true,
-                        fillColor: Colors.white.withOpacity(0.05),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: _inlineError != null ? Colors.redAccent : Colors.white10,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide(
-                            color: _inlineError != null ? Colors.redAccent : theme.colorScheme.primary,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.all(16.0),
+                      // Generate CV button
+                      const SizedBox(height: 24),
+                      CustomButton(
+                        text: isBusy ? (busyReason ?? 'Please wait...') : 'Generate CV',
+                        onPressed: isBusy ? null : _handleGenerate,
+                        isLoading: isBusy,
                       ),
-                      onChanged: (text) {
-                        if (_inlineError != null && text.trim().length >= 50) {
-                          setState(() => _inlineError = null);
-                        }
-                        setState(() {}); // Repaint char counter
-                      },
-                    ),
-                    Positioned(
-                      bottom: 12,
-                      right: 12,
-                      child: Text(
-                        '${_infoController.text.length} chars',
-                        style: TextStyle(
-                          color: _infoController.text.length < 50 ? Colors.white38 : Colors.greenAccent,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_inlineError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _inlineError!,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                      const SizedBox(height: 32),
+                    ],
                   ),
-                ],
-
-
-
-                // Generate CV button
-                const SizedBox(height: 24),
-                CustomButton(
-                  text: 'Generate CV',
-                  onPressed: _validateAndSubmit,
                 ),
-                const SizedBox(height: 32),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ListeningLabel extends StatelessWidget {
+  const ListeningLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Colors.redAccent,
+              shape: BoxShape.circle,
             ),
           ),
-        ),
+          const SizedBox(width: 6),
+          const Text(
+            'Listening...',
+            style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
     );
   }

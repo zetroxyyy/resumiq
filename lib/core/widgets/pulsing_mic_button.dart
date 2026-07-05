@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 class PulsingMicButton extends StatefulWidget {
   final bool isListening;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const PulsingMicButton({
     super.key,
     required this.isListening,
-    required this.onTap,
+    this.onTap,
   });
 
   @override

@@ -8,8 +8,10 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <!-- Microphone for speech-to-text -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Vibration -->
     <uses-permission android:name="android.permission.VIBRATE"/>
+
 
     <application
         android:label="Resumiq"

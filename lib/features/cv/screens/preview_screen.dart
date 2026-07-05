@@ -25,6 +25,8 @@ import '../providers/cv_provider.dart';
 import '../services/cloudinary_service.dart';
 import '../services/pdf_service.dart';
 import '../services/ai_service.dart';
+import '../../../core/providers/busy_provider.dart';
+
 
 class PreviewScreen extends ConsumerStatefulWidget {
   final String cvId;
@@ -201,15 +203,31 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   }
 
   Future<String?> _pickAndUploadDocument(String userId, String fieldName) async {
+    if (ref.read(busyProvider)) return null;
     try {
       final picked = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (picked == null) return null;
+      
+      ref.read(busyProvider.notifier).state = true;
+      ref.read(busyReasonProvider.notifier).state = 'Uploading document...';
       
       setState(() {
         _isDownloading = true;
       });
 
-      final bytes = await File(picked.path).readAsBytes();
+      final imageFile = File(picked.path);
+      if (!await imageFile.exists()) {
+        throw Exception('Image file not found. Please try picking again.');
+      }
+      final fileSize = await imageFile.length();
+      if (fileSize == 0) {
+        throw Exception('Image file is empty. Please try a different photo.');
+      }
+      if (fileSize > 10 * 1024 * 1024) {
+        throw Exception('Image too large. Please use a smaller photo.');
+      }
+
+      final bytes = await imageFile.readAsBytes();
       final url = await _cloudinary.uploadBytes(
         bytes: bytes,
         folder: 'resumiq/users/$userId/documents',
@@ -219,16 +237,23 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       return url;
     } catch (e) {
       debugPrint('Doc upload error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Document upload failed: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Document upload failed: $e'), backgroundColor: Colors.red),
+        );
+      }
       return null;
     } finally {
-      setState(() {
-        _isDownloading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isDownloading = false;
+        });
+      }
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
     }
   }
+
 
   Future<void> _handlePassportToggle(bool val, CvModel cv, String userId) async {
     if (!val) {
@@ -384,16 +409,18 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
 
   Widget _documentTile(String label, {required bool isOn, required ValueChanged<bool> onToggle, String? url}) {
     final theme = Theme.of(context);
+    final isBusy = ref.watch(busyProvider);
     return SwitchListTile(
       title: Text(label, style: const TextStyle(color: Colors.white70)),
       subtitle: url != null && url.isNotEmpty
           ? Text('Uploaded ✓', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12))
           : const Text('Not uploaded yet (tap to upload)', style: TextStyle(fontSize: 12, color: Colors.white38)),
       value: isOn,
-      onChanged: onToggle,
+      onChanged: isBusy ? null : onToggle,
       activeColor: theme.colorScheme.primary,
     );
   }
+
 
 
 
@@ -450,6 +477,8 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final cvAsync = ref.watch(cvDetailProvider(widget.cvId));
+    final isBusy = ref.watch(busyProvider);
+    final busyReason = ref.watch(busyReasonProvider);
 
     ref.listen<AsyncValue<CvModel?>>(cvDetailProvider(widget.cvId), (prev, next) {
       next.whenData((cv) {
@@ -525,6 +554,16 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           body: GradientBackground(
             child: Column(
               children: [
+                if (isBusy) ...[
+                  const LinearProgressIndicator(minHeight: 2),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+                    child: Text(
+                      busyReason ?? 'Please wait...',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                  ),
+                ],
                 Expanded(
                   flex: 3,
                   child: InteractiveViewer(
@@ -718,7 +757,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   }
 }
 
-class _EditCvBottomSheet extends StatefulWidget {
+class _EditCvBottomSheet extends ConsumerStatefulWidget {
   final dynamic cv;
   final String userId;
 
@@ -728,10 +767,10 @@ class _EditCvBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<_EditCvBottomSheet> createState() => _EditCvBottomSheetState();
+  ConsumerState<_EditCvBottomSheet> createState() => _EditCvBottomSheetState();
 }
 
-class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
+class _EditCvBottomSheetState extends ConsumerState<_EditCvBottomSheet> {
   late Map<String, dynamic> _editedContent;
   bool _isSaving = false;
 
@@ -780,6 +819,8 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
   }
 
   Future<void> _saveChanges() async {
+    if (ref.read(busyProvider)) return;
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       if (mounted) {
@@ -802,6 +843,8 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
       return;
     }
 
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Saving changes...';
     setState(() => _isSaving = true);
 
     // Update locally edited variables
@@ -860,12 +903,15 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
       if (mounted) {
         setState(() => _isSaving = false);
       }
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isBusy = ref.watch(busyProvider);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
@@ -941,7 +987,7 @@ class _EditCvBottomSheetState extends State<_EditCvBottomSheet> {
               CustomButton(
                 text: 'Save Changes',
                 isLoading: _isSaving,
-                onPressed: _saveChanges,
+                onPressed: isBusy ? null : _saveChanges,
               ),
             ],
           ),
@@ -1092,13 +1138,18 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
 
   Future<void> _applyChange() async {
     if (_transcribedText.trim().isEmpty) return;
+    if (ref.read(busyProvider)) return;
 
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Applying voice edits...';
     setState(() => _isApplying = true);
 
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null || userId.isEmpty) {
       if (mounted) {
         setState(() => _isApplying = false);
+        ref.read(busyProvider.notifier).state = false;
+        ref.read(busyReasonProvider.notifier).state = null;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Session expired. Please sign in again.'), backgroundColor: Colors.red),
         );
@@ -1156,6 +1207,8 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
       if (mounted) {
         setState(() => _isApplying = false);
       }
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
     }
   }
 
@@ -1163,6 +1216,7 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTranscribed = _transcribedText.trim().isNotEmpty;
+    final isBusy = ref.watch(busyProvider);
 
     return LoadingOverlay(
       isLoading: _isApplying,
@@ -1227,7 +1281,7 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
                   ],
                   PulsingMicButton(
                     isListening: _isListening,
-                    onTap: _handleMicTap,
+                    onTap: isBusy ? null : _handleMicTap,
                   ),
                 ],
               ),
@@ -1254,7 +1308,7 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
             const SizedBox(height: 24),
             CustomButton(
               text: 'Apply Change',
-              onPressed: isTranscribed ? _applyChange : null,
+              onPressed: isTranscribed && !isBusy ? _applyChange : null,
             ),
           ],
         ),

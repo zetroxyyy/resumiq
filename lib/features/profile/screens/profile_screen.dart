@@ -262,6 +262,12 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.feedback_outlined),
+                        title: const Text('Send Feedback'),
+                        onTap: () => _showFeedbackDialog(context, ref, user),
+                      ),
                     ],
                   ),
                 ),
@@ -319,6 +325,65 @@ class ProfileScreen extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  void _showFeedbackDialog(BuildContext context, WidgetRef ref, dynamic currentUser) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Send Feedback'),
+          content: TextField(
+            controller: controller,
+            minLines: 3,
+            maxLines: 8,
+            keyboardType: TextInputType.multiline,
+            decoration: const InputDecoration(
+              hintText: 'Found a bug or have a suggestion? Tell us here.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final feedbackText = controller.text.trim();
+                if (feedbackText.isEmpty) return;
+
+                Navigator.pop(dialogContext);
+
+                try {
+                  await FirebaseFirestore.instance.collection('feedback').add({
+                    'userId': currentUser.uid,
+                    'email': currentUser.email,
+                    'message': feedbackText,
+                    'appVersion': AppConstants.appVersion,
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Thanks! We'll look into it.")),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to send feedback: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

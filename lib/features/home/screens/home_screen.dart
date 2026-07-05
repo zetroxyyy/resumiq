@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,11 +11,151 @@ import '../providers/home_provider.dart';
 import '../widgets/cv_card.dart';
 import '../widgets/empty_state_widget.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  Set<String> _dismissedGlobalAlertIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDismissedGlobalAlerts();
+  }
+
+  Future<void> _loadDismissedGlobalAlerts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList('dismissed_global_alerts') ?? [];
+    setState(() {
+      _dismissedGlobalAlertIds = list.toSet();
+    });
+  }
+
+  Future<void> _dismissGlobalAlert(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final newSet = {..._dismissedGlobalAlertIds, id};
+    await prefs.setStringList('dismissed_global_alerts', newSet.toList());
+    setState(() {
+      _dismissedGlobalAlertIds = newSet;
+    });
+  }
+
+  Widget _buildAlertsSection(String userId, ThemeData theme) {
+    return Column(
+      children: [
+        // 1. Personal Alerts Stream
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('alerts')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox.shrink();
+            final docs = snapshot.data!.docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return data['read'] != true;
+            }).toList();
+
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final message = data['message'] as String? ?? '';
+                final type = data['type'] as String? ?? 'info';
+                
+                return _buildAlertBanner(
+                  message: message,
+                  type: type,
+                  theme: theme,
+                  onDismiss: () async {
+                    await doc.reference.update({'read': true});
+                  },
+                );
+              }).toList(),
+            );
+          },
+        ),
+
+        // 2. Global Announcements Stream
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('alerts')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const SizedBox.shrink();
+            final docs = snapshot.data!.docs.where((doc) {
+              return !_dismissedGlobalAlertIds.contains(doc.id);
+            }).toList();
+
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final message = data['message'] as String? ?? '';
+                final type = data['type'] as String? ?? 'info';
+
+                return _buildAlertBanner(
+                  message: message,
+                  type: type,
+                  theme: theme,
+                  onDismiss: () => _dismissGlobalAlert(doc.id),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlertBanner({
+    required String message,
+    required String type,
+    required ThemeData theme,
+    required VoidCallback onDismiss,
+  }) {
+    Color bgColor = Colors.blue.withOpacity(0.15);
+    Color borderColor = Colors.blue;
+    IconData icon = Icons.info_outline;
+
+    if (type == 'success') {
+      bgColor = Colors.green.withOpacity(0.15);
+      borderColor = Colors.green;
+      icon = Icons.check_circle_outline;
+    } else if (type == 'warning') {
+      bgColor = Colors.orange.withOpacity(0.15);
+      borderColor = Colors.orange;
+      icon = Icons.warning_amber_outlined;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor.withOpacity(0.5)),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: borderColor),
+        title: Text(
+          message,
+          style: const TextStyle(fontSize: 14, color: Colors.white),
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+          onPressed: onDismiss,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = ref.watch(authProvider);
 
@@ -41,7 +183,6 @@ class HomeScreen extends ConsumerWidget {
       body: GradientBackground(
         child: RefreshIndicator(
           onRefresh: () async {
-            // Force stream refresh if pulling down
             ref.invalidate(userCvsProvider);
           },
           child: SingleChildScrollView(
@@ -50,6 +191,7 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _buildAlertsSection(user.uid, theme),
                 // Top Greeting Row
                 Row(
                   children: [

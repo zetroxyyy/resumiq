@@ -22,6 +22,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  final TextEditingController _announcementController = TextEditingController();
+  String _announcementType = 'info';
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +38,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _announcementController.dispose();
     super.dispose();
   }
 
@@ -285,18 +289,193 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Widget _buildAnnouncementsTab({required ThemeData theme}) {
-    return const Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Icon(Icons.campaign_outlined, size: 72, color: Colors.white30),
-          SizedBox(height: 16),
-          Text(
-            'Announcements Tab',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Create Global Announcement',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _announcementController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: 'Type announcement message here... (no emojis)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Text('Type: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      DropdownButton<String>(
+                        value: _announcementType,
+                        dropdownColor: Colors.grey[900],
+                        items: ['info', 'success', 'warning'].map((type) {
+                          return DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type.toUpperCase()),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _announcementType = val;
+                            });
+                          }
+                        },
+                      ),
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.publish),
+                        label: const Text('Publish'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                        ),
+                        onPressed: () async {
+                          final msg = _announcementController.text.trim();
+                          if (msg.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter a message.')),
+                            );
+                            return;
+                          }
+
+                          try {
+                            await FirebaseFirestore.instance.collection('alerts').add({
+                              'message': msg,
+                              'type': _announcementType,
+                              'createdAt': FieldValue.serverTimestamp(),
+                            });
+
+                            _announcementController.clear();
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Announcement published successfully.')),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed to publish: $e')),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
-          SizedBox(height: 6),
-          Text('Coming Soon placeholder', style: TextStyle(color: Colors.white38)),
+          const SizedBox(height: 24),
+          Text(
+            'Announcement History',
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('alerts')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: Text('No announcements sent yet.', style: TextStyle(color: Colors.white38))),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final doc = docs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final message = data['message'] as String? ?? '';
+                  final type = data['type'] as String? ?? 'info';
+                  final timestamp = data['createdAt'] as Timestamp?;
+                  final dateStr = timestamp != null
+                      ? DateFormat('yyyy-MM-dd HH:mm').format(timestamp.toDate())
+                      : 'Pending...';
+
+                  Color typeColor = Colors.blueAccent;
+                  if (type == 'success') typeColor = Colors.green;
+                  if (type == 'warning') typeColor = Colors.orange;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      title: Text(message),
+                      subtitle: Text('$dateStr • ${type.toUpperCase()}', style: TextStyle(color: typeColor, fontSize: 12)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () async {
+                          showDialog(
+                            context: context,
+                            builder: (dialogCtx) => AlertDialog(
+                              title: const Text('Delete Announcement?'),
+                              content: const Text('Are you sure you want to delete this global announcement?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogCtx),
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () async {
+                                    Navigator.pop(dialogCtx);
+                                    try {
+                                      await FirebaseFirestore.instance.collection('alerts').doc(doc.id).delete();
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Announcement deleted.')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Failed to delete: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -473,6 +652,29 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'verifiedAt': Timestamp.fromDate(now),
       });
 
+      // 4. Create personal alerts: payment verified + Pro activated
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(payment.userId)
+          .collection('alerts')
+          .add({
+        'message': 'Your payment has been verified.',
+        'type': 'success',
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(payment.userId)
+          .collection('alerts')
+          .add({
+        'message': 'Your Pro subscription has been activated.',
+        'type': 'success',
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
+      });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -514,6 +716,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         'status': 'rejected',
         'verifiedBy': 'admin',
         'verifiedAt': Timestamp.fromDate(now),
+      });
+
+      // 3. Create personal alert: payment rejected
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(payment.userId)
+          .collection('alerts')
+          .add({
+        'message': 'Your payment has been rejected.',
+        'type': 'warning',
+        'createdAt': FieldValue.serverTimestamp(),
+        'read': false,
       });
 
       if (mounted) {

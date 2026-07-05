@@ -35,6 +35,30 @@ class _AdminUserDetailScreenState extends ConsumerState<AdminUserDetailScreen> {
         'tierExpiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
       });
 
+      if (tier == 'pro') {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .collection('alerts')
+            .add({
+          'message': 'Your Pro subscription has been activated.',
+          'type': 'success',
+          'createdAt': FieldValue.serverTimestamp(),
+          'read': false,
+        });
+      } else {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(widget.userId)
+            .collection('alerts')
+            .add({
+          'message': 'Your Pro subscription has been revoked.',
+          'type': 'warning',
+          'createdAt': FieldValue.serverTimestamp(),
+          'read': false,
+        });
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

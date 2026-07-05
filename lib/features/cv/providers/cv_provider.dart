@@ -167,6 +167,13 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
           SnackBar(
             content: Text(cleanMessage),
             backgroundColor: Colors.redAccent,
+            action: SnackBarAction(
+              label: 'Try Again',
+              textColor: Colors.white,
+              onPressed: () {
+                context.go('/cv/generating');
+              },
+            ),
           ),
         );
       }
