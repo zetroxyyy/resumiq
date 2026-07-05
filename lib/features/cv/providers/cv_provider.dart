@@ -10,15 +10,11 @@ import '../services/ai_service.dart';
 class CvInputState {
   final String rawInput;
   final String format;
-  final String? jobDescription;
-  final bool atsOptimized;
   final String? photoUrl;
 
   const CvInputState({
     required this.rawInput,
     required this.format,
-    this.jobDescription,
-    this.atsOptimized = false,
     this.photoUrl,
   });
 }
@@ -65,8 +61,6 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
       final generatedContent = await _gemini.generateCv(
         rawInput: inputData.rawInput,
         cvType: inputData.format,
-        jobDescription: inputData.jobDescription,
-        atsOptimized: inputData.atsOptimized,
       );
 
       final personalInfo = generatedContent['personalInfo'] as Map<String, dynamic>?;
@@ -96,11 +90,11 @@ class CvGenerationNotifier extends StateNotifier<CvGenerationState> {
         userId: user.uid,
         title: cvTitle,
         rawInput: inputData.rawInput,
-        jobDescription: inputData.jobDescription,
+        jobDescription: null,
         generatedContent: generatedContent,
         template: 'clean',
         cvType: inputData.format,
-        atsOptimized: inputData.atsOptimized,
+        atsOptimized: false,
         score: score,
         scoreFeedback: scoreFeedbackList,
         version: 1,

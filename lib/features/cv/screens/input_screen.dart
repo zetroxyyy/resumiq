@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../../core/widgets/custom_button.dart';
-import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/gradient_background.dart';
 import '../../../core/widgets/loading_overlay.dart';
 import '../../../core/widgets/pulsing_mic_button.dart';
@@ -23,13 +22,10 @@ class InputScreen extends ConsumerStatefulWidget {
 
 class _InputScreenState extends ConsumerState<InputScreen> {
   final _infoController = TextEditingController();
-  final _jobController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool _isJobExpanded = false;
-  String _selectedFormat = 'Standard';
+  String _selectedFormat = 'Normal';
   String? _inlineError;
-  bool _atsOptimized = false;
 
   // Photo upload state
   final PhotoService _photoService = PhotoService();
@@ -38,8 +34,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   bool _isPhotoLoading = false;
 
   final List<String> _formats = [
-    'Standard',
-    'Europass',
+    'Normal',
     'Modern',
     'Nepal-Saudi',
     'Nepal-Qatar',
@@ -50,7 +45,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
 
   final SpeechToText _speech = SpeechToText();
   bool _isListeningInfo = false;
-  bool _isListeningJob = false;
   bool _hasMicPermission = false;
 
   @override
@@ -175,7 +169,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
   @override
   void dispose() {
     _infoController.dispose();
-    _jobController.dispose();
     _speech.stop();
     super.dispose();
   }
@@ -335,8 +328,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     );
   }
 
-
-
   void _validateAndSubmit() {
     setState(() {
       _inlineError = null;
@@ -364,10 +355,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     ref.read(cvInputProvider.notifier).state = CvInputState(
       rawInput: rawInput,
       format: _selectedFormat,
-      jobDescription: _isJobExpanded && _jobController.text.trim().isNotEmpty
-          ? _jobController.text.trim()
-          : null,
-      atsOptimized: _atsOptimized,
       photoUrl: _photoUrl,
     );
 
@@ -423,59 +410,9 @@ class _InputScreenState extends ConsumerState<InputScreen> {
     );
   }
 
-  void _showUpgradePrompt(String feature) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        final theme = Theme.of(context);
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Pro Feature Needed',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "$feature is a Pro feature. Upgrade to Pro for access to ATS optimization, premium styling, and unlimited generations.",
-                  style: const TextStyle(color: Colors.white70, height: 1.5),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                CustomButton(
-                  text: 'Upgrade to Pro',
-                  onPressed: () {
-                    Navigator.pop(context);
-                    context.push('/upgrade');
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final user = ref.watch(authProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -493,7 +430,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Part 4: Permission Card
+                // Microphone permission card
                 if (!_hasMicPermission) ...[
                   Card(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -529,6 +466,10 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ],
 
+                // Photo upload row
+                _buildPhotoUploadRow(),
+                const SizedBox(height: 24),
+
                 // Section: Your Information
                 Text(
                   'Your Information',
@@ -545,10 +486,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Photo upload row
-                _buildPhotoUploadRow(),
-                const SizedBox(height: 16),
-
+                // Voice typing label + mic button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -585,6 +523,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // Large multiline text field
                 Stack(
                   children: [
                     TextFormField(
@@ -640,67 +579,6 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ],
 
-                // Section: Tailor for a Job (Optional)
-                const SizedBox(height: 24),
-                Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: ExpansionTile(
-                    title: const Text('Tailor for a Job? (Optional)'),
-                    subtitle: const Text(
-                      'AI will customize your CV for this specific role',
-                      style: TextStyle(fontSize: 12, color: Colors.white60),
-                    ),
-                    onExpansionChanged: (expanded) {
-                      setState(() {
-                        _isJobExpanded = expanded;
-                      });
-                    },
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: CustomTextField(
-                                controller: _jobController,
-                                labelText: 'Job Description or URL',
-                                hintText: 'Paste target requirements or job detail here...',
-                                prefixIcon: Icons.description_outlined,
-                                maxLines: 5,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              children: [
-                                if (_isListeningJob)
-                                  const ListeningLabel(),
-                                const SizedBox(height: 8),
-                                PulsingMicButton(
-                                  isListening: _isListeningJob,
-                                  onTap: () {
-                                    _handleMicAction(() {
-                                      if (_isListeningJob) {
-                                        _stopListening(onStop: () => setState(() => _isListeningJob = false));
-                                      } else {
-                                        setState(() => _isListeningJob = true);
-                                        _startListening(
-                                          controller: _jobController,
-                                          onStop: () => setState(() => _isListeningJob = false),
-                                        );
-                                      }
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 // Section: CV Format
                 const SizedBox(height: 24),
                 Text(
@@ -745,59 +623,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                   ),
                 ),
 
-                // Section: ATS Optimization
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Text(
-                      'Optimize for ATS',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(Icons.info_outline, size: 20, color: Colors.white60),
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('What is ATS?'),
-                            content: const Text(
-                              'Most companies use software to filter CVs before a human reads them.\n\n'
-                              'Enabling this creates a plain-text version of your CV that passes '
-                              'these filters — no columns, tables, or graphics.'
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Got it'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    const Spacer(),
-                    Switch(
-                      value: (user?.isPro ?? false) ? _atsOptimized : false,
-                      activeColor: theme.colorScheme.primary,
-                      onChanged: (value) {
-                        final isPro = user?.isPro ?? false;
-                        if (!isPro) {
-                          _showUpgradePrompt('Optimize for ATS');
-                        } else {
-                          setState(() {
-                            _atsOptimized = value;
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-
+                // Generate CV button
                 const SizedBox(height: 24),
                 CustomButton(
                   text: 'Generate CV',

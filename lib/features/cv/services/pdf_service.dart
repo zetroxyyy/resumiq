@@ -43,10 +43,6 @@ class PdfService {
       : null;
 
 
-    if (cv.atsOptimized || cv.generatedContent['atsOptimized'] == true) {
-      return _generateSimple(cv, isPro: isPro, qrUrl: qrUrl);
-    }
-
     final nameNormalized = templateName.toLowerCase().trim();
 
     if (nameNormalized == 'professional') {
@@ -61,9 +57,13 @@ class PdfService {
       return _generateEuropass(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage);
     } else if (nameNormalized == 'executive') {
       return _generateExecutive(cv, isPro: isPro, qrUrl: qrUrl);
-    } else if (nameNormalized == 'nepal special' || nameNormalized == 'nepal-special') {
+    } else if (nameNormalized == 'nepal special' ||
+        nameNormalized == 'nepal-special' ||
+        nameNormalized.startsWith('nepal-') ||
+        nameNormalized.startsWith('nepal ')) {
       return _generateNepalSpecial(cv, isPro: isPro, qrUrl: qrUrl, photoImage: photoImage, passportImage: passportImage);
     } else {
+      // Normal, Clean, or any unknown -> Clean layout
       return _generateClean(cv, isPro: isPro, qrUrl: qrUrl);
     }
   }
