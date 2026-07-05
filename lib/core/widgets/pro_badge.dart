@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../app/theme.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ProBadge extends StatelessWidget {
   final double fontSize;
@@ -18,23 +18,16 @@ class ProBadge extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: AppTheme.proBadgeColor,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.proBadgeColor.withOpacity(0.4),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         'PRO',
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: Colors.black87,
-          fontWeight: FontWeight.bold,
+        style: GoogleFonts.inter(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
           fontSize: fontSize,
-          letterSpacing: 0.5,
+          letterSpacing: 1.5,
         ),
       ),
     );

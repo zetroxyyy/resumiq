@@ -73,4 +73,4 @@ lib/
 
 ## License
 
-MIT © 2025 zetroxyyy
+MIT © 2026 zetroxyyy

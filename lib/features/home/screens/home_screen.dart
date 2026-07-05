@@ -196,11 +196,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'Hello, $firstName 👋',
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      child: RichText(
+                        text: TextSpan(
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          children: [
+                            const TextSpan(text: 'Hello, '),
+                            TextSpan(
+                              text: firstName,
+                              style: TextStyle(color: theme.colorScheme.primary),
+                            ),
+                          ],
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -272,32 +279,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ],
 
-                // Create New CV Gradient Card
+                // Create New CV Card
                 const SizedBox(height: 24),
                 Container(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        theme.colorScheme.primary,
-                        theme.colorScheme.secondary,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => context.push('/cv/input'),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
                         child: Row(
@@ -403,11 +396,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
-          const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          const BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Create'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
           if (isAdmin)
             const BottomNavigationBarItem(
-              icon: Icon(Icons.admin_panel_settings),
+              icon: Icon(Icons.admin_panel_settings_outlined),
               label: 'Admin',
             ),
         ],

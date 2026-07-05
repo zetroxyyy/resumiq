@@ -369,7 +369,11 @@ class _CoverLetterScreenState extends ConsumerState<CoverLetterScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const Text('✍️', style: TextStyle(fontSize: 24)),
+                  Icon(
+                    Icons.edit_note_outlined,
+                    color: theme.colorScheme.primary,
+                    size: 28,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

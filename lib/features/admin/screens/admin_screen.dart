@@ -111,14 +111,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
             }
           },
           items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
-            const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-            if (isAdmin)
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.admin_panel_settings),
-                label: 'Admin',
-              ),
+             const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+             const BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Create'),
+             const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+             if (isAdmin)
+               const BottomNavigationBarItem(
+                 icon: Icon(Icons.admin_panel_settings),
+                 label: 'Admin',
+               ),
           ],
         ),
       ),
@@ -142,26 +142,26 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           _buildStatCard(
             label: 'Total Users',
             valueAsync: totalUsersAsync,
-            icon: Icons.people_alt,
-            color: Colors.blueAccent,
+            icon: Icons.people_outline,
+            color: theme.colorScheme.primary,
           ),
           _buildStatCard(
             label: 'Pro Users',
             valueAsync: proUsersAsync,
-            icon: Icons.star,
-            color: Colors.amber,
+            icon: Icons.star_outline,
+            color: theme.colorScheme.primary,
           ),
           _buildStatCard(
             label: 'Total Generations',
             valueAsync: totalCvsAsync,
-            icon: Icons.description,
-            color: Colors.green,
+            icon: Icons.description_outlined,
+            color: theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B),
           ),
           _buildStatCard(
             label: 'Your Runs This Month',
             valueAsync: AsyncValue.data(adminGenerations),
             icon: Icons.run_circle_outlined,
-            color: Colors.purpleAccent,
+            color: theme.colorScheme.primary,
           ),
         ],
       ),
@@ -174,8 +174,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final theme = Theme.of(context);
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.colorScheme.outline),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -190,13 +196,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
               ),
               loading: () => const SizedBox(
                   width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              error: (e, s) => const Text('--', style: TextStyle(color: Colors.white54)),
+              error: (e, s) => Text('--', style: TextStyle(color: theme.colorScheme.secondary)),
             ),
             const SizedBox(height: 6),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
+              style: TextStyle(color: theme.colorScheme.secondary, fontSize: 11),
             ),
           ],
         ),
@@ -214,14 +220,25 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         children: [
           TextField(
             controller: _searchController,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: theme.colorScheme.onSurface),
             decoration: InputDecoration(
               hintText: 'Search by name or email...',
-              hintStyle: const TextStyle(color: Colors.white38),
-              prefixIcon: const Icon(Icons.search, color: Colors.white70),
+              hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.38)),
+              prefixIcon: Icon(Icons.search_outlined, color: theme.colorScheme.onSurface.withOpacity(0.7)),
               filled: true,
-              fillColor: Colors.white.withOpacity(0.05),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              fillColor: theme.colorScheme.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.outline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: theme.colorScheme.primary),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -242,8 +259,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   itemBuilder: (context, index) {
                     final targetUser = filteredUsers[index];
                     return Card(
+                      elevation: 0,
+                      color: theme.colorScheme.surface,
                       margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: theme.colorScheme.outline),
+                      ),
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundImage: targetUser.photoUrl.isNotEmpty
@@ -255,17 +277,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                               : null,
                         ),
                         title: Text(targetUser.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(targetUser.email, style: const TextStyle(fontSize: 12, color: Colors.white60)),
+                        subtitle: Text(targetUser.email, style: TextStyle(fontSize: 12, color: theme.colorScheme.secondary)),
                         trailing: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: targetUser.isPro ? Colors.amber.withOpacity(0.15) : Colors.white10,
+                            color: targetUser.isPro ? theme.colorScheme.primary.withOpacity(0.12) : theme.colorScheme.outline,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             targetUser.isPro ? 'PRO' : 'FREE',
                             style: TextStyle(
-                              color: targetUser.isPro ? Colors.amber : Colors.white60,
+                              color: targetUser.isPro ? theme.colorScheme.primary : theme.colorScheme.secondary,
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
                             ),
@@ -321,7 +343,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       const SizedBox(width: 8),
                       DropdownButton<String>(
                         value: _announcementType,
-                        dropdownColor: Colors.grey[900],
+                        dropdownColor: theme.colorScheme.surface,
                         items: ['info', 'success', 'warning'].map((type) {
                           return DropdownMenuItem<String>(
                             value: type,
@@ -393,7 +415,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent));
+                return Text('Error: ${snapshot.error}', style: TextStyle(color: theme.colorScheme.error));
               }
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -401,10 +423,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
               final docs = snapshot.data?.docs ?? [];
               if (docs.isEmpty) {
-                return const Card(
+                return Card(
+                  elevation: 0,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.colorScheme.outline),
+                  ),
                   child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(child: Text('No announcements sent yet.', style: TextStyle(color: Colors.white38))),
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(child: Text('No announcements sent yet.', style: TextStyle(color: theme.colorScheme.secondary))),
                   ),
                 );
               }
@@ -423,17 +451,23 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                       ? DateFormat('yyyy-MM-dd HH:mm').format(timestamp.toDate())
                       : 'Pending...';
 
-                  Color typeColor = Colors.blueAccent;
-                  if (type == 'success') typeColor = Colors.green;
-                  if (type == 'warning') typeColor = Colors.orange;
+                  Color typeColor = theme.colorScheme.primary;
+                  if (type == 'success') typeColor = theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B);
+                  if (type == 'warning') typeColor = theme.brightness == Brightness.dark ? const Color(0xFFD19A4E) : const Color(0xFFC48A3D);
 
                   return Card(
+                    elevation: 0,
+                    color: theme.colorScheme.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: theme.colorScheme.outline),
+                    ),
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       title: Text(message),
                       subtitle: Text('$dateStr • ${type.toUpperCase()}', style: TextStyle(color: typeColor, fontSize: 12)),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        icon: Icon(Icons.delete_outline, color: theme.colorScheme.error),
                         onPressed: () async {
                           showDialog(
                             context: context,
@@ -463,7 +497,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                                       }
                                     }
                                   },
-                                  child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                                  child: Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
                                 ),
                               ],
                             ),
@@ -506,6 +540,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Widget _buildPaymentsList({required bool isPendingOnly}) {
+    final theme = Theme.of(context);
     final paymentsAsync = ref.watch(isPendingOnly ? pendingPaymentsProvider : allPaymentsProvider);
     final fmt = DateFormat('MMM dd, yyyy \'at\' h:mm a');
 
@@ -549,7 +584,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Submitted: ${fmt.format(payment.createdAt)}',
-                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      style: TextStyle(color: theme.colorScheme.secondary, fontSize: 11),
                     ),
                     if (payment.status == 'pending') ...[
                       const SizedBox(height: 12),
@@ -559,8 +594,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           OutlinedButton(
                             onPressed: () => _rejectPayment(payment),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.redAccent,
-                              side: const BorderSide(color: Colors.redAccent),
+                              foregroundColor: theme.colorScheme.error,
+                              side: BorderSide(color: theme.colorScheme.error),
                             ),
                             child: const Text('Reject'),
                           ),
@@ -568,8 +603,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                           FilledButton(
                             onPressed: () => _verifyPayment(payment),
                             style: FilledButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                              backgroundColor: theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B),
+                              foregroundColor: theme.colorScheme.onPrimary,
                             ),
                             child: const Text('Verify & Grant Pro'),
                           ),
@@ -589,16 +624,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Widget _buildStatusBadge(String status) {
+    final theme = Theme.of(context);
     Color color;
     switch (status) {
       case 'verified':
-        color = Colors.green;
+        color = theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B);
         break;
       case 'rejected':
-        color = Colors.redAccent;
+        color = theme.colorScheme.error;
         break;
       default:
-        color = Colors.orange;
+        color = theme.brightness == Brightness.dark ? const Color(0xFFD19A4E) : const Color(0xFFC48A3D);
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -615,6 +651,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _verifyPayment(PaymentModel payment) async {
+    final theme = Theme.of(context);
     try {
       final now = DateTime.now();
       final durationDays = payment.plan == 'yearly' ? 365 : 30;
@@ -679,7 +716,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Pro granted to ${payment.userGmail}'),
-            backgroundColor: Colors.green,
+            backgroundColor: theme.brightness == Brightness.dark ? const Color(0xFF5FAD7E) : const Color(0xFF4C9A6B),
           ),
         );
       }
@@ -693,6 +730,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _rejectPayment(PaymentModel payment) async {
+    final theme = Theme.of(context);
     try {
       final now = DateTime.now();
 
@@ -732,9 +770,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment rejected'),
-            backgroundColor: Colors.redAccent,
+          SnackBar(
+            content: const Text('Payment rejected'),
+            backgroundColor: theme.colorScheme.error,
           ),
         );
       }

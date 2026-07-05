@@ -49,36 +49,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   const Spacer(),
                   // Centered Upper Half: Logo + Brand
-                  Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.4),
-                          blurRadius: 15,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/icons/app_icon.png',
-                      width: 100,
-                      height: 100,
-                    ),
+                  Image.asset(
+                    'assets/icons/app_icon.png',
+                    width: 100,
+                    height: 100,
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Resumiq',
                     style: theme.textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.0,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Your career, powered by AI',
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.white70,
+                      color: theme.colorScheme.secondary,
                     ),
                   ),
                   const Spacer(),
@@ -91,13 +79,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        border: Border.all(color: theme.colorScheme.outline, width: 1.0),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -133,10 +115,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                   const Spacer(),
                   // Terms Text
-                  const Text(
+                  Text(
                     'By continuing, you agree to our Terms of Service',
                     style: TextStyle(
-                      color: Colors.white38,
+                      color: theme.colorScheme.secondary.withOpacity(0.6),
                       fontSize: 12,
                     ),
                   ),

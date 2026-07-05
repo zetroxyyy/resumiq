@@ -80,7 +80,7 @@ class ProfileScreen extends ConsumerWidget {
                             user.name,
                             style: theme.textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           if (user.isPro) ...[
@@ -92,7 +92,7 @@ class ProfileScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         user.email,
-                        style: const TextStyle(color: Colors.white54, fontSize: 14),
+                        style: TextStyle(color: theme.colorScheme.secondary, fontSize: 14),
                       ),
                     ],
                   ),
@@ -101,7 +101,12 @@ class ProfileScreen extends ConsumerWidget {
 
                 // Account Card
                 Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.colorScheme.outline),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -115,17 +120,17 @@ class ProfileScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Plan Type', style: TextStyle(color: Colors.white70)),
+                            Text('Plan Type', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: user.isPro ? Colors.blueAccent.withOpacity(0.2) : Colors.white10,
+                                color: user.isPro ? theme.colorScheme.primary.withOpacity(0.12) : theme.colorScheme.outline,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
                                 user.isPro ? 'Pro Plan' : 'Free Plan',
                                 style: TextStyle(
-                                  color: user.isPro ? Colors.blueAccent : Colors.white70,
+                                  color: user.isPro ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.7),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
@@ -138,7 +143,7 @@ class ProfileScreen extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('CV Generations', style: TextStyle(color: Colors.white70)),
+                              Text('CV Generations', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
                               Text(
                                 '${user.generationsThisMonth} of 2 this month',
                                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -147,14 +152,14 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           CustomButton(
-                            text: 'Upgrade to Pro →',
+                            text: 'Upgrade to Pro',
                             onPressed: () => context.push('/upgrade'),
                           ),
                         ] else ...[
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Expiry Date', style: TextStyle(color: Colors.white70)),
+                              Text('Expiry Date', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
                               Text(
                                 user.tierExpiresAt != null
                                     ? DateFormat('yyyy-MM-dd').format(user.tierExpiresAt!)
@@ -167,15 +172,18 @@ class ProfileScreen extends ConsumerWidget {
                           OutlinedButton(
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Manage Subscription coming soon!')),
+                                SnackBar(
+                                  content: const Text('Manage Subscription coming soon!'),
+                                  backgroundColor: theme.colorScheme.primary,
+                                ),
                               );
                             },
                             style: OutlinedButton.styleFrom(
                               minimumSize: const Size(double.infinity, 44),
-                              side: const BorderSide(color: Colors.white30),
+                              side: BorderSide(color: theme.colorScheme.outline),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            child: const Text('Manage Subscription', style: TextStyle(color: Colors.white70)),
+                            child: Text('Manage Subscription', style: TextStyle(color: theme.colorScheme.onSurface)),
                           ),
                         ],
                         const SizedBox(height: 12),
@@ -184,7 +192,7 @@ class ProfileScreen extends ConsumerWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total CVs Created', style: TextStyle(color: Colors.white70)),
+                            Text('Total CVs Created', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
                              cvsCountAsync.when(
                               data: (totalCount) => Text(
                                 '$totalCount',
@@ -192,7 +200,7 @@ class ProfileScreen extends ConsumerWidget {
                               ),
                               loading: () => const SizedBox(
                                   width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                              error: (e, s) => const Text('Error', style: TextStyle(color: Colors.redAccent)),
+                              error: (e, s) => Text('Error', style: TextStyle(color: theme.colorScheme.error)),
                             ),
                           ],
                         ),
@@ -204,7 +212,12 @@ class ProfileScreen extends ConsumerWidget {
 
                 // Settings Card
                 Card(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                  color: theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.colorScheme.outline),
+                  ),
                   child: Column(
                     children: [
                       ListTile(
@@ -249,14 +262,14 @@ class ProfileScreen extends ConsumerWidget {
                         child: ListTile(
                           leading: const Icon(Icons.info_outline),
                           title: const Text('App Version'),
-                          subtitle: const Text(
+                          subtitle: Text(
                             'Tap to check for updates • Long-press to copy',
-                            style: TextStyle(fontSize: 11, color: Colors.white38),
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.secondary),
                           ),
                           trailing: Text(
                             'v${AppConstants.appVersion}',
-                            style: const TextStyle(
-                              color: Colors.deepPurpleAccent,
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -283,14 +296,14 @@ class ProfileScreen extends ConsumerWidget {
                       context.go('/login');
                     }
                   },
-                  icon: const Icon(Icons.logout, color: Colors.redAccent),
-                  label: const Text(
+                  icon: Icon(Icons.logout_outlined, color: theme.colorScheme.error),
+                  label: Text(
                     'Sign Out',
-                    style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: Colors.redAccent),
+                    side: BorderSide(color: theme.colorScheme.error),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -315,12 +328,12 @@ class ProfileScreen extends ConsumerWidget {
           }
         },
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Create'),
+          const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Create'),
           const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           if (isAdmin)
             const BottomNavigationBarItem(
-              icon: Icon(Icons.admin_panel_settings),
+              icon: Icon(Icons.admin_panel_settings_outlined),
               label: 'Admin',
             ),
         ],

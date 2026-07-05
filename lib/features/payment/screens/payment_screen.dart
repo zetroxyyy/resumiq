@@ -229,7 +229,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> with SingleTicker
                       ),
                       const SizedBox(height: 32),
                       const Text(
-                        'Payment Submitted! ✅',
+                        'Payment Submitted',
                         style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                         textAlign: TextAlign.center,
                       ),

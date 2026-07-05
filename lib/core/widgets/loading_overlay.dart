@@ -23,7 +23,7 @@ class LoadingOverlay extends StatelessWidget {
           // Block user interaction
           ModalBarrier(
             dismissible: false,
-            color: Colors.black.withOpacity(0.65),
+            color: theme.scaffoldBackgroundColor.withOpacity(0.85),
           ),
           Center(
             child: Card(

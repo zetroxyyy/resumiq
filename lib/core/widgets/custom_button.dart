@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../app/theme.dart';
 
 enum CustomButtonVariant { primary, secondary, text }
 
@@ -26,6 +25,19 @@ class CustomButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isDisabled = onPressed == null || isLoading;
 
+    final accentColor = theme.colorScheme.primary;
+    final primaryTextColor = theme.colorScheme.onSurface;
+    final dividerColor = theme.colorScheme.outline;
+
+    Color getTextColor() {
+      if (variant == CustomButtonVariant.primary) {
+        return Colors.white;
+      }
+      return primaryTextColor;
+    }
+
+    final contentColor = getTextColor();
+
     Widget buttonContent = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -36,11 +48,7 @@ class CustomButton extends StatelessWidget {
             height: 20,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                variant == CustomButtonVariant.primary
-                    ? Colors.white
-                    : theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(contentColor),
             ),
           ),
           const SizedBox(width: 12),
@@ -48,47 +56,44 @@ class CustomButton extends StatelessWidget {
           Icon(
             icon,
             size: 20,
-            color: variant == CustomButtonVariant.primary
-                ? Colors.white
-                : theme.colorScheme.primary,
+            color: contentColor,
           ),
           const SizedBox(width: 8),
         ],
         Text(
           text,
           style: theme.textTheme.labelLarge?.copyWith(
-            color: variant == CustomButtonVariant.primary
-                ? Colors.white
-                : (isDisabled ? theme.disabledColor : theme.colorScheme.primary),
+            color: contentColor,
             fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
 
+    Widget finalButton;
+
     if (variant == CustomButtonVariant.primary) {
-      return Container(
+      finalButton = Container(
         width: width,
         height: 52,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: isDisabled
+          borderRadius: BorderRadius.circular(12),
+          color: accentColor,
+          boxShadow: isDisabled
               ? null
-              : const LinearGradient(
-                  colors: [
-                    AppTheme.primaryColor,
-                    Color(0xFF8B84FF),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-          color: isDisabled ? theme.disabledColor.withOpacity(0.12) : null,
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: isDisabled ? null : onPressed,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: buttonContent,
@@ -97,20 +102,19 @@ class CustomButton extends StatelessWidget {
         ),
       );
     } else if (variant == CustomButtonVariant.secondary) {
-      return SizedBox(
+      finalButton = SizedBox(
         width: width,
         height: 52,
         child: OutlinedButton(
           onPressed: isDisabled ? null : onPressed,
           style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.transparent,
             side: BorderSide(
-              color: isDisabled
-                  ? theme.disabledColor.withOpacity(0.12)
-                  : theme.colorScheme.primary,
+              color: dividerColor,
               width: 1.5,
             ),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 24),
           ),
@@ -118,14 +122,14 @@ class CustomButton extends StatelessWidget {
         ),
       );
     } else {
-      return SizedBox(
+      finalButton = SizedBox(
         width: width,
         height: 52,
         child: TextButton(
           onPressed: isDisabled ? null : onPressed,
           style: TextButton.styleFrom(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 24),
           ),
@@ -133,5 +137,14 @@ class CustomButton extends StatelessWidget {
         ),
       );
     }
+
+    if (isDisabled) {
+      return Opacity(
+        opacity: 0.4,
+        child: finalButton,
+      );
+    }
+
+    return finalButton;
   }
 }

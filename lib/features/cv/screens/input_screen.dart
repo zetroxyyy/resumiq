@@ -54,10 +54,10 @@ class _InputScreenState extends ConsumerState<InputScreen> {
         if (sharedText.isNotEmpty) {
           _infoController.text = sharedText;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Text received from sharing. Review and tap Generate CV.'),
-              backgroundColor: Color(0xFF6C63FF),
-              duration: Duration(seconds: 4),
+            SnackBar(
+              content: const Text('Text received from sharing. Review and tap Generate CV.'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              duration: const Duration(seconds: 4),
             )
           );
         }
@@ -75,9 +75,9 @@ class _InputScreenState extends ConsumerState<InputScreen> {
             _infoController.text = sharedText;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Text received. Review and tap Generate CV.'),
-              backgroundColor: Color(0xFF6C63FF),
+            SnackBar(
+              content: const Text('Text received. Review and tap Generate CV.'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
             )
           );
         }
@@ -389,7 +389,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _photoUrl != null ? 'Photo added ✓' : 'Add your photo (optional)',
+                    _photoUrl != null ? 'Photo added' : 'Add your photo (optional)',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: _photoUrl != null
@@ -556,7 +556,11 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                             padding: const EdgeInsets.all(16.0),
                             child: Row(
                               children: [
-                                const Text('🎤', style: TextStyle(fontSize: 24)),
+                                Icon(
+                                  Icons.mic_none_outlined,
+                                  color: theme.colorScheme.primary,
+                                  size: 28,
+                                ),
                                 const SizedBox(width: 12),
                                 const Expanded(
                                   child: Text(
@@ -647,20 +651,20 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                             minLines: 6,
                             maxLines: 12,
                             keyboardType: TextInputType.multiline,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: theme.colorScheme.onSurface),
                             decoration: InputDecoration(
                               hintText: 'Type your experiences here...',
-                              hintStyle: const TextStyle(color: Colors.white30),
+                              hintStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.38)),
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
+                              fillColor: theme.colorScheme.surface,
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
-                                  color: _inlineError != null ? Colors.redAccent : Colors.white10,
+                                  color: _inlineError != null ? Colors.redAccent : theme.colorScheme.outline,
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide(
                                   color: _inlineError != null ? Colors.redAccent : theme.colorScheme.primary,
                                 ),
@@ -680,7 +684,7 @@ class _InputScreenState extends ConsumerState<InputScreen> {
                             child: Text(
                               '${_infoController.text.length} chars',
                               style: TextStyle(
-                                color: _infoController.text.length < 50 ? Colors.white38 : Colors.greenAccent,
+                                color: _infoController.text.length < 50 ? theme.colorScheme.secondary : theme.colorScheme.primary,
                                 fontSize: 12,
                               ),
                             ),

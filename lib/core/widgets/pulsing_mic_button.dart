@@ -42,7 +42,7 @@ class _PulsingMicButtonState extends State<PulsingMicButton>
         final scale = widget.isListening ? 1.0 + (_controller.value * 0.2) : 1.0;
         final color = widget.isListening
             ? Color.lerp(theme.colorScheme.primary, theme.colorScheme.primaryContainer, _controller.value)
-            : Colors.white10;
+            : theme.colorScheme.onSurface.withOpacity(0.08);
 
         return Transform.scale(
           scale: scale,
@@ -64,8 +64,8 @@ class _PulsingMicButtonState extends State<PulsingMicButton>
             ),
             child: IconButton(
               icon: Icon(
-                widget.isListening ? Icons.mic : Icons.mic_none,
-                color: widget.isListening ? Colors.black : Colors.white,
+                widget.isListening ? Icons.mic_none : Icons.mic_none_outlined,
+                color: widget.isListening ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
               ),
               onPressed: widget.onTap,
             ),
@@ -112,11 +112,12 @@ class _ListeningLabelState extends State<ListeningLabel>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final dots = '.' * _dotsCount;
     return Text(
       'Listening$dots',
-      style: const TextStyle(
-        color: Colors.white60,
+      style: TextStyle(
+        color: theme.colorScheme.secondary,
         fontSize: 13,
         fontWeight: FontWeight.w500,
       ),

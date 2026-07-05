@@ -14,7 +14,6 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   double _opacity = 0.0;
-  double _scale = 0.5;
   Timer? _timer;
 
   @override
@@ -25,7 +24,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       if (mounted) {
         setState(() {
           _opacity = 1.0;
-          _scale = 1.0;
         });
       }
     });
@@ -60,29 +58,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AnimatedScale(
-                scale: _scale,
-                duration: const Duration(milliseconds: 1500),
-                curve: Curves.elasticOut,
-                child: AnimatedOpacity(
-                  opacity: _opacity,
-                  duration: const Duration(milliseconds: 1000),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: theme.colorScheme.primary.withOpacity(0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      'assets/icons/app_icon.png',
-                      width: 120,
-                      height: 120,
-                    ),
-                  ),
+              AnimatedOpacity(
+                opacity: _opacity,
+                duration: const Duration(milliseconds: 1200),
+                curve: Curves.easeIn,
+                child: Image.asset(
+                  'assets/icons/app_icon.png',
+                  width: 120,
+                  height: 120,
                 ),
               ),
               const SizedBox(height: 24),
@@ -95,16 +78,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     Text(
                       'Resumiq',
                       style: theme.textTheme.displayMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Your career, powered by AI',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white70,
+                        color: theme.colorScheme.secondary,
                       ),
                     ),
                   ],

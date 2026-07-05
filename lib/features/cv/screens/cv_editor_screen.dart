@@ -442,9 +442,9 @@ class _CvEditorScreenState extends ConsumerState<CvEditorScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('CV saved successfully'),
-            backgroundColor: Color(0xFF6C63FF),
+          SnackBar(
+            content: const Text('CV saved successfully'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           )
         );
         Navigator.of(context).pop(true); // Return true = refresh needed

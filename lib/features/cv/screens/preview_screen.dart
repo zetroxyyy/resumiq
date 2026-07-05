@@ -411,10 +411,10 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     final theme = Theme.of(context);
     final isBusy = ref.watch(busyProvider);
     return SwitchListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white70)),
+      title: Text(label, style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7))),
       subtitle: url != null && url.isNotEmpty
-          ? Text('Uploaded ✓', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12))
-          : const Text('Not uploaded yet (tap to upload)', style: TextStyle(fontSize: 12, color: Colors.white38)),
+          ? Text('Uploaded', style: TextStyle(color: theme.colorScheme.primary, fontSize: 12))
+          : Text('Not uploaded yet (tap to upload)', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.38))),
       value: isOn,
       onChanged: isBusy ? null : onToggle,
       activeColor: theme.colorScheme.primary,
@@ -616,7 +616,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                               },
                               leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
                               title: const Text(
-                                '💡 AI Suggestions',
+                                'AI Suggestions',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               children: [
@@ -671,18 +671,19 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildBottomAction(
-                  icon: Icons.picture_as_pdf,
+                  icon: Icons.picture_as_pdf_outlined,
                   label: 'PDF',
                   isLoading: _isDownloading,
+                  isPrimary: true,
                   onTap: () => _handleDownloadAndUpload(cv, user.uid, isPro: user.isPro),
                 ),
                 _buildBottomAction(
-                  icon: Icons.mic,
+                  icon: Icons.mic_none_outlined,
                   label: 'Voice Edit',
                   onTap: () => _showVoiceEditBottomSheet(cv, user.uid),
                 ),
                 _buildBottomAction(
-                  icon: Icons.edit_note,
+                  icon: Icons.edit_note_outlined,
                   label: 'Edit',
                   onTap: () async {
                     final result = await context.push('/cv/editor/${cv.id}', extra: cv);
@@ -705,8 +706,12 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     required IconData icon,
     required String label,
     bool isLoading = false,
+    bool isPrimary = false,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final activeColor = isPrimary ? theme.colorScheme.primary : theme.colorScheme.onSurface;
+
     return InkWell(
       onTap: isLoading ? null : onTap,
       borderRadius: BorderRadius.circular(8),
@@ -716,10 +721,20 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             isLoading
-                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                : Icon(icon, size: 28, color: Colors.white),
+                ? SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(activeColor),
+                    ),
+                  )
+                : Icon(icon, size: 28, color: activeColor),
             const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            Text(
+              label,
+              style: TextStyle(color: activeColor, fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -1188,9 +1203,9 @@ class _VoiceEditBottomSheetState extends ConsumerState<_VoiceEditBottomSheet> {
       if (mounted) {
         Navigator.pop(context); // Close bottom sheet
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('CV updated ✓'),
-            backgroundColor: Color(0xFF6C63FF),
+          SnackBar(
+            content: const Text('CV updated successfully'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
       }
@@ -1382,7 +1397,7 @@ class _HistoryBottomSheetState extends ConsumerState<_HistoryBottomSheet> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Restored to version #${version.versionNumber} ✓'),
+            content: Text('Restored to version #${version.versionNumber}'),
             backgroundColor: Colors.green,
           ),
         );

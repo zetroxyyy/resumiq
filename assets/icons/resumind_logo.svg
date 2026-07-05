@@ -1,13 +1,6 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6C63FF" />
-      <stop offset="100%" stop-color="#03DAC6" />
-    </linearGradient>
-  </defs>
-  
   <!-- Rounded square background -->
-  <rect width="1024" height="1024" rx="220" fill="url(#grad)" />
+  <rect width="1024" height="1024" rx="220" fill="#14141C" />
   
   <!-- Stylized letter R -->
   <path d="M 320 280 
@@ -23,17 +16,17 @@
            L 530 500 
            C 590 500 630 470 630 430 
            C 630 390 590 360 530 360 
-           Z" fill="#FFFFFF" />
+           Z" fill="#B8935B" />
            
   <!-- Leg of R -->
   <path d="M 500 580 
            L 660 740 
            L 760 740 
            L 580 580 
-           Z" fill="#FFFFFF" />
+           Z" fill="#B8935B" />
            
   <!-- Document line details on the right -->
-  <rect x="760" y="340" width="100" height="16" rx="8" fill="#FFFFFF" opacity="0.8" />
-  <rect x="760" y="440" width="140" height="16" rx="8" fill="#FFFFFF" opacity="0.8" />
-  <rect x="760" y="540" width="120" height="16" rx="8" fill="#FFFFFF" opacity="0.8" />
+  <rect x="760" y="340" width="100" height="16" rx="8" fill="#B8935B" opacity="0.8" />
+  <rect x="760" y="440" width="140" height="16" rx="8" fill="#B8935B" opacity="0.8" />
+  <rect x="760" y="540" width="120" height="16" rx="8" fill="#B8935B" opacity="0.8" />
 </svg>
