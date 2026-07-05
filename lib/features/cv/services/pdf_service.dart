@@ -31,8 +31,69 @@ class DocumentOptions {
   });
 }
 
+class SizeTier {
+  final double nameSize, contactSize, headerSize, bodySize;
+  final double lineSpacing, sectionGap, entryGap;
+  const SizeTier({
+    required this.nameSize,
+    required this.contactSize,
+    required this.headerSize,
+    required this.bodySize,
+    required this.lineSpacing,
+    required this.sectionGap, 
+    required this.entryGap,
+  });
+}
+
 class PdfService {
   const PdfService();
+
+  static const _pdfInk = PdfColor.fromInt(0xFF14141C);
+  static const _pdfInkSecondary = PdfColor.fromInt(0xFF6B6B76);
+  static const _pdfGold = PdfColor.fromInt(0xFFB8935B);
+  static const _pdfDivider = PdfColor.fromInt(0xFFE4E1D8);
+  static const _pdfWhite = PdfColor.fromInt(0xFFFFFFFF);
+  static const _pdfBlack = PdfColor.fromInt(0xFF000000);
+
+  static const _tierSpacious = SizeTier(
+    nameSize: 22, contactSize: 9, headerSize: 10, bodySize: 9.5,
+    lineSpacing: 1.4, sectionGap: 16, entryGap: 10);
+
+  static const _tierStandard = SizeTier(
+    nameSize: 20, contactSize: 8.5, headerSize: 9.5, bodySize: 9,
+    lineSpacing: 1.3, sectionGap: 12, entryGap: 8);
+
+  static const _tierCompact = SizeTier(
+    nameSize: 18, contactSize: 8, headerSize: 9, bodySize: 8.3,
+    lineSpacing: 1.2, sectionGap: 8, entryGap: 6);
+
+  SizeTier _selectTier(int score) {
+    if (score <= 12) return _tierSpacious;
+    if (score <= 22) return _tierStandard;
+    return _tierCompact;
+  }
+
+  int _computeDensityScore(Map<String, dynamic> data) {
+    final workExp = _mapList(data['workExperience']);
+    final education = _mapList(data['education']);
+    final certifications = _mapList(data['certifications']);
+    final projects = _mapList(data['projects']);
+    final achievements = _list(data['achievements']);
+    final summary = _str(data['summary']);
+    
+    int bulletCount = 0;
+    for (final job in workExp) {
+      bulletCount += _list(job['responsibilities']).length;
+    }
+    
+    return (workExp.length * 3) 
+      + bulletCount 
+      + (education.length * 2) 
+      + certifications.length 
+      + (projects.length * 2) 
+      + achievements.length 
+      + (summary.length ~/ 100);
+  }
 
   static Future<pw.ImageProvider?> downloadPhotoForPdf(String? photoUrl) async {
     if (photoUrl == null || photoUrl.trim().isEmpty) {
@@ -93,7 +154,11 @@ class PdfService {
       final citBackImage = results[3];
       final bodyImage = results[4];
 
-      final pdf = await normalTemplate(cv, photoImage: photoImage);
+      final score = _computeDensityScore(cv.generatedContent);
+      final tier = _selectTier(score);
+      debugPrint('CV density score: $score, using tier: ${tier == _tierCompact ? "compact" : tier == _tierStandard ? "standard" : "spacious"}');
+
+      final pdf = await normalTemplate(cv, photoImage: photoImage, tier: tier);
 
       // Appending document pages sequentially using the pre-downloaded images
       if (options != null) {
@@ -131,7 +196,7 @@ class PdfService {
               style: pw.TextStyle(
                 fontSize: 12,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColors.grey700,
+                color: _pdfInkSecondary,
               ),
             ),
             pw.SizedBox(height: 12),
@@ -149,8 +214,13 @@ class PdfService {
     );
   }
 
-  Future<pw.Document> normalTemplate(CvModel cv, {pw.ImageProvider? photoImage}) async {
-    final pdf = pw.Document();
+  Future<pw.Document> normalTemplate(CvModel cv, {pw.ImageProvider? photoImage, required SizeTier tier}) async {
+    final pdfTheme = pw.ThemeData.withFont(
+      base: pw.Font.helvetica(),
+      bold: pw.Font.helveticaBold(),
+      italic: pw.Font.helveticaOblique(),
+    );
+    final pdf = pw.Document(theme: pdfTheme);
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] is Map
         ? Map<String, dynamic>.from(content['personalInfo'] as Map)
@@ -184,10 +254,10 @@ class PdfService {
       if (website.isNotEmpty) website,
     ];
 
-    const ink = PdfColor.fromInt(0xFF14141C);
-    const gold = PdfColor.fromInt(0xFFB8935B);
-    const muted = PdfColor.fromInt(0xFF6B6B76);
-    const divider = PdfColor.fromInt(0xFFE4E1D8);
+    const ink = _pdfInk;
+    const gold = _pdfGold;
+    const muted = _pdfInkSecondary;
+    const divider = _pdfDivider;
 
     pdf.addPage(
       pw.MultiPage(
@@ -208,7 +278,7 @@ class PdfService {
                           name,
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
-                            fontSize: 20,
+                            fontSize: tier.nameSize,
                             color: ink,
                           ),
                         ),
@@ -216,21 +286,21 @@ class PdfService {
                         pw.SizedBox(height: 2),
                         pw.Text(
                           jobTitle,
-                          style: pw.TextStyle(fontSize: 11, color: gold),
+                          style: pw.TextStyle(fontSize: tier.contactSize + 2, color: gold),
                         ),
                       ],
                       if (contactParts.isNotEmpty) ...[
-                        pw.SizedBox(height: 6),
+                        pw.SizedBox(height: tier.entryGap * 0.75),
                         pw.Container(width: double.infinity, height: 0.5, color: divider),
-                        pw.SizedBox(height: 4),
+                        pw.SizedBox(height: tier.entryGap * 0.5),
                         pw.Wrap(
                           spacing: 8,
                           runSpacing: 2,
                           children: contactParts
                               .map((p) => pw.Text(
                                     p,
-                                    style: const pw.TextStyle(
-                                      fontSize: 8.5,
+                                    style: pw.TextStyle(
+                                      fontSize: tier.contactSize,
                                       color: muted,
                                     ),
                                   ))
@@ -253,56 +323,68 @@ class PdfService {
                 ],
               ],
             ),
-            pw.SizedBox(height: 12),
+            pw.SizedBox(height: tier.entryGap + 4),
 
             // Summary
             if (summary.isNotEmpty) ...[
-              _buildProfSectionHeader('PROFESSIONAL SUMMARY', ink, gold),
-              pw.Text(summary, style: pw.TextStyle(fontSize: 9.5, color: ink)),
-              pw.SizedBox(height: 8),
+              _buildProfSectionHeader('PROFESSIONAL SUMMARY', ink, gold, tier: tier),
+              pw.Text(
+                summary,
+                style: pw.TextStyle(
+                  fontSize: tier.bodySize,
+                  color: ink,
+                  height: tier.lineSpacing,
+                ),
+              ),
+              pw.SizedBox(height: tier.sectionGap),
             ],
 
             // Work Experience
             if (experiences.isNotEmpty) ...[
-              _buildProfSectionHeader('WORK EXPERIENCE', ink, gold),
-              ...experiences.map((exp) => _buildProfExpItem(exp, ink, gold, muted)),
+              _buildProfSectionHeader('WORK EXPERIENCE', ink, gold, tier: tier),
+              ...experiences.map((exp) => _buildProfExpItem(exp, ink, gold, muted, tier: tier)),
+              pw.SizedBox(height: tier.sectionGap - tier.entryGap),
             ],
 
             // Education
             if (educations.isNotEmpty) ...[
-              _buildProfSectionHeader('EDUCATION', ink, gold),
-              ...educations.map((edu) => _buildProfEduItem(edu, ink, gold, muted)),
+              _buildProfSectionHeader('EDUCATION', ink, gold, tier: tier),
+              ...educations.map((edu) => _buildProfEduItem(edu, ink, gold, muted, tier: tier)),
+              pw.SizedBox(height: tier.sectionGap - tier.entryGap),
             ],
 
             // Skills
             if (skills != null) ...[
-              _buildProfSectionHeader('SKILLS', ink, gold),
-              _buildProfSkills(skills, ink, muted, divider),
-              pw.SizedBox(height: 8),
+              _buildProfSectionHeader('SKILLS', ink, gold, tier: tier),
+              _buildProfSkills(skills, ink, muted, divider, tier: tier),
+              pw.SizedBox(height: tier.sectionGap),
             ],
 
             // Certifications
             if (certifications.isNotEmpty) ...[
-              _buildProfSectionHeader('CERTIFICATIONS', ink, gold),
-              ...certifications.map((c) => _buildProfCertItem(c, ink, muted)),
+              _buildProfSectionHeader('CERTIFICATIONS', ink, gold, tier: tier),
+              ...certifications.map((c) => _buildProfCertItem(c, ink, muted, tier: tier)),
+              pw.SizedBox(height: tier.sectionGap - (tier.entryGap * 0.5)),
             ],
 
             // Projects
             if (projects.isNotEmpty) ...[
-              _buildProfSectionHeader('PROJECTS', ink, gold),
-              ...projects.map((p) => _buildProfProjectItem(p, ink, gold, muted)),
+              _buildProfSectionHeader('PROJECTS', ink, gold, tier: tier),
+              ...projects.map((p) => _buildProfProjectItem(p, ink, gold, muted, tier: tier)),
+              pw.SizedBox(height: tier.sectionGap - tier.entryGap),
             ],
 
             // Achievements
             if (achievements.isNotEmpty) ...[
-              _buildProfSectionHeader('ACHIEVEMENTS', ink, gold),
-              ...achievements.map((a) => _buildProfAchievementItem(a, ink, muted)),
+              _buildProfSectionHeader('ACHIEVEMENTS', ink, gold, tier: tier),
+              ...achievements.map((a) => _buildProfAchievementItem(a, ink, muted, tier: tier)),
+              pw.SizedBox(height: tier.sectionGap - (tier.entryGap * 0.5)),
             ],
 
             // References
             if (references.isNotEmpty) ...[
-              _buildProfSectionHeader('REFERENCES', ink, gold),
-              ...references.map((r) => _buildProfReferenceItem(r, ink, gold, muted)),
+              _buildProfSectionHeader('REFERENCES', ink, gold, tier: tier),
+              ...references.map((r) => _buildProfReferenceItem(r, ink, gold, muted, tier: tier)),
             ],
           ];
         },
@@ -335,7 +417,7 @@ class PdfService {
   /// Builds a plain-styled Nepal Personal Information page.
   /// Pure white background, pure black text, Helvetica only, no accent colors.
   pw.Page _buildNepalInfoPage(Map<String, dynamic> info, dynamic skills) {
-    const black = PdfColor.fromInt(0xFF000000);
+    const black = _pdfBlack;
 
     final languagesVal = skills is Map ? skills['languages'] : null;
     final languagesList = _list(languagesVal);
@@ -415,7 +497,7 @@ class PdfService {
 
   // ─── Professional CV helper widgets ────────────────────────────────────────
 
-  pw.Widget _buildProfSectionHeader(String title, PdfColor ink, PdfColor gold) {
+  pw.Widget _buildProfSectionHeader(String title, PdfColor ink, PdfColor gold, {required SizeTier tier}) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -423,19 +505,19 @@ class PdfService {
           title,
           style: pw.TextStyle(
             fontWeight: pw.FontWeight.bold,
-            fontSize: 9,
+            fontSize: tier.headerSize,
             letterSpacing: 1.2,
             color: ink,
           ),
         ),
         pw.SizedBox(height: 2),
         pw.Container(width: double.infinity, height: 0.75, color: gold),
-        pw.SizedBox(height: 6),
+        pw.SizedBox(height: tier.entryGap * 0.75),
       ],
     );
   }
 
-  pw.Widget _buildProfExpItem(dynamic exp, PdfColor ink, PdfColor gold, PdfColor muted) {
+  pw.Widget _buildProfExpItem(dynamic exp, PdfColor ink, PdfColor gold, PdfColor muted, {required SizeTier tier}) {
     if (exp is! Map) return pw.SizedBox.shrink();
     final company = _str(exp['company']);
     final role = _str(exp['role'] ?? exp['position'] ?? exp['title']);
@@ -450,33 +532,33 @@ class PdfService {
           children: [
             pw.Expanded(
               child: pw.Text(role.isNotEmpty ? role : company,
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: ink)),
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 1.0, color: ink)),
             ),
             if (period.isNotEmpty)
-              pw.Text(period, style: pw.TextStyle(fontSize: 8.5, color: muted)),
+              pw.Text(period, style: pw.TextStyle(fontSize: tier.contactSize, color: muted)),
           ],
         ),
         if (role.isNotEmpty && company.isNotEmpty)
-          pw.Text(company, style: pw.TextStyle(fontSize: 9, color: gold)),
+          pw.Text(company, style: pw.TextStyle(fontSize: tier.bodySize, color: gold)),
         pw.SizedBox(height: 3),
         ...responsibilities.map((r) => pw.Padding(
               padding: const pw.EdgeInsets.only(bottom: 2),
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('• ', style: pw.TextStyle(fontSize: 9, color: ink)),
+                  pw.Text('• ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
                   pw.Expanded(
                       child: pw.Text(_str(r),
-                          style: pw.TextStyle(fontSize: 9, color: ink))),
+                          style: pw.TextStyle(fontSize: tier.bodySize, color: ink, height: tier.lineSpacing))),
                 ],
               ),
             )),
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: tier.entryGap),
       ],
     );
   }
 
-  pw.Widget _buildProfEduItem(dynamic edu, PdfColor ink, PdfColor gold, PdfColor muted) {
+  pw.Widget _buildProfEduItem(dynamic edu, PdfColor ink, PdfColor gold, PdfColor muted, {required SizeTier tier}) {
     if (edu is! Map) return pw.SizedBox.shrink();
     final institution = _str(edu['institution'] ?? edu['school']);
     final degree = _str(edu['degree']);
@@ -490,24 +572,24 @@ class PdfService {
           children: [
             pw.Expanded(
               child: pw.Text(degree.isNotEmpty ? degree : institution,
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: ink)),
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 1.0, color: ink)),
             ),
             if (year.isNotEmpty)
-              pw.Text(year, style: pw.TextStyle(fontSize: 8.5, color: muted)),
+              pw.Text(year, style: pw.TextStyle(fontSize: tier.contactSize, color: muted)),
           ],
         ),
         if (institution.isNotEmpty && degree.isNotEmpty)
-          pw.Text(institution, style: pw.TextStyle(fontSize: 9, color: gold)),
+          pw.Text(institution, style: pw.TextStyle(fontSize: tier.bodySize, color: gold)),
         if (field.isNotEmpty)
-          pw.Text(field, style: pw.TextStyle(fontSize: 9, color: muted)),
+          pw.Text(field, style: pw.TextStyle(fontSize: tier.bodySize, color: muted)),
         if (grade.isNotEmpty)
-          pw.Text('GPA/Grade: $grade', style: pw.TextStyle(fontSize: 9, color: muted)),
-        pw.SizedBox(height: 8),
+          pw.Text('GPA/Grade: $grade', style: pw.TextStyle(fontSize: tier.bodySize, color: muted)),
+        pw.SizedBox(height: tier.entryGap),
       ],
     );
   }
 
-  pw.Widget _buildProfSkills(dynamic skills, PdfColor ink, PdfColor muted, PdfColor divider) {
+  pw.Widget _buildProfSkills(dynamic skills, PdfColor ink, PdfColor muted, PdfColor divider, {required SizeTier tier}) {
     if (skills is Map) {
       final rows = <pw.Widget>[];
       skills.forEach((key, val) {
@@ -522,11 +604,11 @@ class PdfService {
                 width: 90,
                 child: pw.Text('$key:',
                     style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold, fontSize: 9, color: ink)),
+                        fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize, color: ink)),
               ),
               pw.Expanded(
                   child: pw.Text(items,
-                      style: pw.TextStyle(fontSize: 9, color: ink))),
+                      style: pw.TextStyle(fontSize: tier.bodySize, color: ink, height: tier.lineSpacing))),
             ],
           ),
         ));
@@ -543,7 +625,7 @@ class PdfService {
               border: pw.Border.all(color: divider, width: 0.75),
             ),
             child: pw.Text(_str(s),
-                style: pw.TextStyle(fontSize: 8.5, color: ink)),
+                style: pw.TextStyle(fontSize: tier.bodySize - 0.5, color: ink)),
           );
         }).toList(),
       );
@@ -551,7 +633,7 @@ class PdfService {
     return pw.SizedBox.shrink();
   }
 
-  pw.Widget _buildProfCertItem(dynamic cert, PdfColor ink, PdfColor muted) {
+  pw.Widget _buildProfCertItem(dynamic cert, PdfColor ink, PdfColor muted, {required SizeTier tier}) {
     String name = '';
     String issuer = '';
     String date = '';
@@ -563,23 +645,22 @@ class PdfService {
       name = _str(cert);
     }
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
+      padding: pw.EdgeInsets.only(bottom: tier.entryGap * 0.5),
       child: pw.Row(
         children: [
           pw.Expanded(
               child: pw.Text(name,
                   style: pw.TextStyle(
-                      fontWeight: pw.FontWeight.bold, fontSize: 9.5, color: ink))),
+                      fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 0.5, color: ink))),
           if (issuer.isNotEmpty || date.isNotEmpty)
             pw.Text([issuer, date].where((s) => s.isNotEmpty).join(', '),
-                style: pw.TextStyle(fontSize: 8.5, color: muted)),
+                style: pw.TextStyle(fontSize: tier.contactSize, color: muted)),
         ],
       ),
     );
   }
 
-  pw.Widget _buildProfProjectItem(
-      dynamic proj, PdfColor ink, PdfColor gold, PdfColor muted) {
+  pw.Widget _buildProfProjectItem(dynamic proj, PdfColor ink, PdfColor gold, PdfColor muted, {required SizeTier tier}) {
     if (proj is! Map) return pw.SizedBox.shrink();
     final name = _str(proj['name'] ?? proj['title']);
     final desc = _str(proj['description']);
@@ -591,26 +672,26 @@ class PdfService {
       children: [
         pw.Text(name,
             style: pw.TextStyle(
-                fontWeight: pw.FontWeight.bold, fontSize: 10, color: ink)),
+                fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 1.0, color: ink)),
         if (desc.isNotEmpty) ...[
           pw.SizedBox(height: 2),
-          pw.Text(desc, style: pw.TextStyle(fontSize: 9, color: ink)),
+          pw.Text(desc, style: pw.TextStyle(fontSize: tier.bodySize, color: ink, height: tier.lineSpacing)),
         ],
         if (techStr.isNotEmpty) ...[
           pw.SizedBox(height: 2),
           pw.Text('Tech: $techStr',
-              style: pw.TextStyle(fontSize: 8.5, color: muted)),
+              style: pw.TextStyle(fontSize: tier.bodySize - 0.5, color: muted)),
         ],
         if (link.isNotEmpty) ...[
           pw.SizedBox(height: 2),
-          pw.Text(link, style: pw.TextStyle(fontSize: 8.5, color: gold)),
+          pw.Text(link, style: pw.TextStyle(fontSize: tier.bodySize - 0.5, color: gold)),
         ],
-        pw.SizedBox(height: 8),
+        pw.SizedBox(height: tier.entryGap),
       ],
     );
   }
 
-  pw.Widget _buildProfAchievementItem(dynamic item, PdfColor ink, PdfColor muted) {
+  pw.Widget _buildProfAchievementItem(dynamic item, PdfColor ink, PdfColor muted, {required SizeTier tier}) {
     String title = '';
     String desc = '';
     if (item is Map) {
@@ -620,21 +701,21 @@ class PdfService {
       title = _str(item);
     }
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 4),
+      padding: pw.EdgeInsets.only(bottom: tier.entryGap * 0.5),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text('• ', style: pw.TextStyle(fontSize: 9, color: ink)),
+          pw.Text('• ', style: pw.TextStyle(fontSize: tier.bodySize, color: ink)),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(title,
                     style: pw.TextStyle(
-                        fontWeight: pw.FontWeight.bold, fontSize: 9.5, color: ink)),
+                        fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 0.5, color: ink)),
                 if (desc.isNotEmpty)
                   pw.Text(desc,
-                      style: pw.TextStyle(fontSize: 9, color: muted)),
+                      style: pw.TextStyle(fontSize: tier.bodySize, color: muted, height: tier.lineSpacing)),
               ],
             ),
           ),
@@ -643,26 +724,25 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildProfReferenceItem(
-      dynamic ref, PdfColor ink, PdfColor gold, PdfColor muted) {
+  pw.Widget _buildProfReferenceItem(dynamic ref, PdfColor ink, PdfColor gold, PdfColor muted, {required SizeTier tier}) {
     if (ref is! Map) return pw.SizedBox.shrink();
     final name = _str(ref['name']);
     final position = _str(ref['position'] ?? ref['title']);
     final company = _str(ref['company'] ?? ref['organization']);
     final contact = _str(ref['contact'] ?? ref['email'] ?? ref['phone']);
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 6),
+      padding: pw.EdgeInsets.only(bottom: tier.entryGap * 0.75),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(name,
               style: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold, fontSize: 9.5, color: ink)),
+                  fontWeight: pw.FontWeight.bold, fontSize: tier.bodySize + 0.5, color: ink)),
           if (position.isNotEmpty || company.isNotEmpty)
             pw.Text([position, company].where((s) => s.isNotEmpty).join(', '),
-                style: pw.TextStyle(fontSize: 9, color: muted)),
+                style: pw.TextStyle(fontSize: tier.bodySize, color: muted)),
           if (contact.isNotEmpty)
-            pw.Text(contact, style: pw.TextStyle(fontSize: 9, color: gold)),
+            pw.Text(contact, style: pw.TextStyle(fontSize: tier.bodySize, color: gold)),
         ],
       ),
     );

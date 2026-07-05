@@ -48,6 +48,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   final CloudinaryService _cloudinary = CloudinaryService();
   final ImagePicker _imagePicker = ImagePicker();
   bool _isDownloading = false;
+  bool _isSharing = false;
   bool _isAiSuggestionsExpanded = false;
 
   bool _includePassport = false;
@@ -187,6 +188,37 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     } finally {
       if (mounted) {
         setState(() => _isDownloading = false);
+      }
+    }
+  }
+
+  Future<void> _sharePdf(CvModel cv, bool isPro) async {
+    if (ref.read(busyProvider)) return;
+    ref.read(busyProvider.notifier).state = true;
+    ref.read(busyReasonProvider.notifier).state = 'Generating PDF for sharing...';
+    setState(() => _isSharing = true);
+    
+    try {
+      final pdfBytes = await _generatePdfBytes(cv, isPro);
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/${cv.title.replaceAll(" ", "_")}.pdf');
+      await file.writeAsBytes(pdfBytes);
+      
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'My CV - ${cv.title}',
+        subject: cv.title,
+      );
+    } catch (e) {
+      debugPrint('Share error: $e');
+      if (mounted) {
+        showAppSnackBar(context, 'Could not share CV', type: SnackType.error);
+      }
+    } finally {
+      ref.read(busyProvider.notifier).state = false;
+      ref.read(busyReasonProvider.notifier).state = null;
+      if (mounted) {
+        setState(() => _isSharing = false);
       }
     }
   }
@@ -663,6 +695,12 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
                   isLoading: _isDownloading,
                   isPrimary: true,
                   onTap: () => _handleDownloadAndUpload(cv, user.uid, isPro: user.isPro),
+                ),
+                _buildBottomAction(
+                  icon: Icons.share_outlined,
+                  label: 'Share',
+                  isLoading: _isSharing,
+                  onTap: () => _sharePdf(cv, user.isPro),
                 ),
                 _buildBottomAction(
                   icon: Icons.mic_none_outlined,
