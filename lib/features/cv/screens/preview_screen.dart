@@ -90,7 +90,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
     return _pdfService.generatePdf(
       cv,
       'Normal',
-      isPro: isPro,
       options: DocumentOptions(
         includePassport: _includePassport,
         passportUrl: cv.passportUrl,
@@ -153,7 +152,6 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
       final pdfBytes = await _pdfService.generatePdf(
         cv,
         'Normal',
-        isPro: isPro,
         options: DocumentOptions(
           includePassport: _includePassport,
           passportUrl: cv.passportUrl,

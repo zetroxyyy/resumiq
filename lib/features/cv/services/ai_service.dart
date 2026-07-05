@@ -243,25 +243,7 @@ Required JSON structure:
     }
   }
 
-  Future<String> generateCoverLetter({
-    required Map<String, dynamic> cvData,
-    String? jobDescription,
-    String? targetCompany,
-  }) async {
-    final prompt = '''
-You are an expert cover letter writer. Write a professional, personalized cover letter based on this CV.
-3-4 paragraphs, under 400 words. Sound human, confident, specific.
-Opening: strong hook. Middle: 2-3 specific achievements. Closing: clear call to action.
-${jobDescription != null ? 'Job Description: $jobDescription' : ''}
-${targetCompany != null ? 'Target Company: $targetCompany' : ''}
 
-CV Data: ${jsonEncode(cvData)}
-
-Return ONLY the cover letter text. No explanation.
-''';
-
-    return await _callGroq(prompt, temperature: 0.8, maxTokens: 2048);
-  }
 
   Future<Map<String, dynamic>> editCv({
     required Map<String, dynamic> currentCvData,

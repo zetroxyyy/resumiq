@@ -68,7 +68,6 @@ class PdfService {
   Future<Uint8List> generatePdf(
     CvModel cv,
     String templateName, { // Keep parameter to avoid breaking calls in preview_screen
-    bool isPro = false,
     DocumentOptions? options,
   }) async {
     try {
@@ -94,7 +93,7 @@ class PdfService {
       final citBackImage = results[3];
       final bodyImage = results[4];
 
-      final pdf = await normalTemplate(cv, photoImage: photoImage, isPro: isPro);
+      final pdf = await normalTemplate(cv, photoImage: photoImage);
 
       // Appending document pages sequentially using the pre-downloaded images
       if (options != null) {
@@ -150,7 +149,7 @@ class PdfService {
     );
   }
 
-  Future<pw.Document> normalTemplate(CvModel cv, {pw.ImageProvider? photoImage, bool isPro = false}) async {
+  Future<pw.Document> normalTemplate(CvModel cv, {pw.ImageProvider? photoImage}) async {
     final pdf = pw.Document();
     final content = cv.generatedContent;
     final personalInfo = content['personalInfo'] is Map
@@ -703,110 +702,7 @@ class PdfService {
     return path;
   }
 
-  Future<Uint8List> generateCoverLetterPdf(CvModel cv, String text, {String? targetCompany}) async {
-    final pdf = pw.Document();
-    final personalInfo = cv.generatedContent['personalInfo'] is Map
-        ? Map<String, dynamic>.from(cv.generatedContent['personalInfo'] as Map)
-        : <String, dynamic>{};
-    final name = _str(personalInfo['fullName'], 'Applicant');
-    final email = _str(personalInfo['email']);
-    final phone = _str(personalInfo['phone']);
-    final location = _str(personalInfo['location']);
-    final linkedin = _str(personalInfo['linkedIn']);
-    final portfolio = _str(personalInfo['portfolio']);
 
-    final primaryColor = PdfColor.fromInt(0xFF2C3E50);
-
-    final formattedDate = DateFormat('MMMM dd, yyyy').format(DateTime.now());
-    final contactRow = [
-      if (email.isNotEmpty) email,
-      if (phone.isNotEmpty) phone,
-      if (location.isNotEmpty) location,
-    ].join(' | ');
-
-    final socialRow = [
-      if (linkedin.isNotEmpty) linkedin,
-      if (portfolio.isNotEmpty) portfolio,
-    ].join(' | ');
-
-    final paragraphs = text.split('\n').where((p) => p.trim().isNotEmpty).toList();
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(56),
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Container(height: 4, color: primaryColor),
-              pw.SizedBox(height: 12),
-              pw.Text(
-                name,
-                style: pw.TextStyle(
-                  fontSize: 22,
-                  fontWeight: pw.FontWeight.bold,
-                  color: primaryColor,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(contactRow, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-              if (socialRow.isNotEmpty) ...[
-                pw.SizedBox(height: 2),
-                pw.Text(socialRow, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-              ],
-              pw.SizedBox(height: 12),
-              pw.Divider(color: PdfColors.grey300, thickness: 1),
-              pw.SizedBox(height: 16),
-              pw.Align(
-                alignment: pw.Alignment.topRight,
-                child: pw.Text(
-                  formattedDate,
-                  style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
-                ),
-              ),
-              pw.SizedBox(height: 20),
-              pw.Text(
-                targetCompany != null && targetCompany.isNotEmpty
-                    ? 'Dear $targetCompany Team,'
-                    : 'Dear Hiring Manager,',
-                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
-              ),
-              pw.SizedBox(height: 16),
-              ...paragraphs.map((p) => pw.Padding(
-                    padding: const pw.EdgeInsets.only(bottom: 12),
-                  child: pw.Text(
-                    p,
-                    style: const pw.TextStyle(fontSize: 10),
-                  ),
-                  )),
-              pw.SizedBox(height: 20),
-              pw.Text('Sincerely,', style: const pw.TextStyle(fontSize: 10)),
-              pw.SizedBox(height: 16),
-              pw.Text(
-                name,
-                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: primaryColor),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    return pdf.save();
-  }
-
-  Future<String> saveCoverLetterPdfToDevice(Uint8List bytes, String fullName) async {
-    final cleanName = fullName.replaceAll(RegExp(r'[^\w\s\-]'), '').replaceAll(' ', '_');
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filename = '${cleanName}_CoverLetter_$timestamp.pdf';
-
-    final directory = await getApplicationDocumentsDirectory();
-    final path = '${directory.path}/$filename';
-    final file = File(path);
-    await file.writeAsBytes(bytes);
-    return path;
-  }
 
   String _str(dynamic value, [String fallback = '']) {
     if (value == null) return fallback;

@@ -12,7 +12,6 @@ import '../features/cv/screens/generating_screen.dart';
 import '../features/cv/screens/preview_screen.dart';
 import '../features/cv/screens/cv_editor_screen.dart';
 import '../features/cv/models/cv_model.dart';
-import '../features/cv/screens/cover_letter_screen.dart';
 import '../features/profile/screens/profile_screen.dart';
 import '../features/payment/screens/upgrade_screen.dart';
 import '../features/payment/screens/payment_screen.dart';
@@ -82,11 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/home';
         }
 
-        // Pro Guard
-        final isProRoute = state.matchedLocation.startsWith('/cv/cover-letter');
-        if (isProRoute && !authUser.isPro) {
-          return '/home';
-        }
+
 
         // Admin Guard
         final isAdminRoute = state.matchedLocation.startsWith('/admin');
@@ -139,13 +134,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return CvEditorScreen(cvId: cvId, cv: cv);
         },
       ),
-      GoRoute(
-        path: '/cv/cover-letter/:cvId',
-        builder: (context, state) {
-          final cvId = state.pathParameters['cvId'] ?? '';
-          return CoverLetterScreen(cvId: cvId);
-        },
-      ),
+
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileScreen(),

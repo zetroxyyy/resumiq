@@ -582,10 +582,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.publish),
-                      label: const Text('Publish'),
+                      icon: const Icon(
+                        Icons.publish,
+                        color: Color(0xFF14141C),
+                      ),
+                      label: const Text(
+                        'Send to All Users',
+                        style: TextStyle(
+                          color: Color(0xFF14141C), // dark ink, not white
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: const Color(0xFF14141C),
                       ),
                       onPressed: () async {
                         final msg = _announcementController.text.trim();

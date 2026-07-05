@@ -5,7 +5,7 @@ description: "Resumiq - AI CV Generator"
 publish_to: 'none'
 
 # Version
-version: 1.7.3+26
+version: 1.7.4+27
 
 environment:
   sdk: ^3.12.2
@@ -41,8 +41,7 @@ dependencies:
   # PDF Generation
   pdf: ^3.11.3
   printing: ^5.14.2
-  qr_flutter: ^4.1.0
-  qr: ^3.0.2
+
 
   # File System
   path_provider: ^2.1.5
