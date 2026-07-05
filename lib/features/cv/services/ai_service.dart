@@ -145,21 +145,20 @@ STRICT RULES YOU MUST FOLLOW:
 15. Do not add sections that have zero data. If there are no 
     projects mentioned, leave the projects array empty — 
     do not invent projects.
-16. Always include these additional fields in personalInfo
-    that are commonly needed for Nepal foreign work applications:
-    - fatherName: Father's full name (extract if mentioned, 
-      else leave empty)
-    - motherName: Mother's full name (extract if mentioned,
-      else leave empty)  
-    - dateOfBirthBS: Date of birth in Bikram Sambat 
-      (convert from AD if AD date provided, else leave empty)
-    - sex: Gender (Male/Female/Other)
-    - maritalStatus: Marital status (Single/Married/Divorced)
-    - citizenshipNo: Citizenship certificate number 
-      (extract if mentioned, else leave empty)
-    - permanentAddress: Full permanent address
-    - temporaryAddress: Temporary address (same as permanent 
-      if not specified differently)
+16. For the additional Nepal fields in personalInfo, STRICT RULE:
+    Only populate a field if the user EXPLICITLY mentioned that 
+    information in their raw input. If not mentioned, leave it 
+    as an empty string ''. Do NOT invent, guess, or generate 
+    placeholder values for:
+    - fatherName (only fill if user says 'my father is...' or similar)
+    - motherName (only fill if user mentions mother's name)
+    - dateOfBirthBS (only fill if user provides BS date)
+    - sex (only fill if user mentions gender)
+    - maritalStatus (only fill if user mentions marital status)
+    - citizenshipNo (only fill if user provides citizenship number)
+    - permanentAddress (only fill if user mentions address)
+    - temporaryAddress (only fill if user mentions temp address)
+    An empty string is always better than an invented value.
 
 RAW INFORMATION FROM USER:
 $rawInput

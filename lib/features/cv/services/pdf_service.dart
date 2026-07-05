@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -70,35 +71,43 @@ class PdfService {
     bool isPro = false,
     DocumentOptions? options,
   }) async {
-    final pw.ImageProvider? photoImage = await downloadPhotoForPdf(cv.photoUrl);
+    final results = await Future.wait([
+      downloadPhotoForPdf(cv.photoUrl),
+      options != null && options.includePassport && options.passportUrl != null
+        ? downloadPhotoForPdf(options.passportUrl) 
+        : Future.value(null),
+      options != null && options.includeCitizenshipFront && options.citizenshipFrontUrl != null
+        ? downloadPhotoForPdf(options.citizenshipFrontUrl) 
+        : Future.value(null),
+      options != null && options.includeCitizenshipBack && options.citizenshipBackUrl != null
+        ? downloadPhotoForPdf(options.citizenshipBackUrl) 
+        : Future.value(null),
+      options != null && options.includeBodyPhoto && options.bodyPhotoUrl != null
+        ? downloadPhotoForPdf(options.bodyPhotoUrl) 
+        : Future.value(null),
+    ]);
+
+    final photoImage = results[0];
+    final passportImage = results[1];
+    final citFrontImage = results[2];
+    final citBackImage = results[3];
+    final bodyImage = results[4];
 
     final pdf = await normalTemplate(cv, photoImage: photoImage, isPro: isPro);
 
-    // Appending document pages if enabled
+    // Appending document pages sequentially using the pre-downloaded images
     if (options != null) {
-      if (options.includePassport && options.passportUrl != null && options.passportUrl!.isNotEmpty) {
-        final img = await downloadPhotoForPdf(options.passportUrl);
-        if (img != null) {
-          pdf.addPage(_buildDocumentPage("PASSPORT COPY", img));
-        }
+      if (options.includePassport && passportImage != null) {
+        pdf.addPage(_buildDocumentPage("PASSPORT COPY", passportImage));
       }
-      if (options.includeCitizenshipFront && options.citizenshipFrontUrl != null && options.citizenshipFrontUrl!.isNotEmpty) {
-        final img = await downloadPhotoForPdf(options.citizenshipFrontUrl);
-        if (img != null) {
-          pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - FRONT", img));
-        }
+      if (options.includeCitizenshipFront && citFrontImage != null) {
+        pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - FRONT", citFrontImage));
       }
-      if (options.includeCitizenshipBack && options.citizenshipBackUrl != null && options.citizenshipBackUrl!.isNotEmpty) {
-        final img = await downloadPhotoForPdf(options.citizenshipBackUrl);
-        if (img != null) {
-          pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - BACK", img));
-        }
+      if (options.includeCitizenshipBack && citBackImage != null) {
+        pdf.addPage(_buildDocumentPage("CITIZENSHIP CERTIFICATE - BACK", citBackImage));
       }
-      if (options.includeBodyPhoto && options.bodyPhotoUrl != null && options.bodyPhotoUrl!.isNotEmpty) {
-        final img = await downloadPhotoForPdf(options.bodyPhotoUrl);
-        if (img != null) {
-          pdf.addPage(_buildDocumentPage("FULL BODY PHOTO", img));
-        }
+      if (options.includeBodyPhoto && bodyImage != null) {
+        pdf.addPage(_buildDocumentPage("FULL BODY PHOTO", bodyImage));
       }
     }
 
@@ -142,28 +151,47 @@ class PdfService {
     final personalInfo = content['personalInfo'] as Map<String, dynamic>? ?? {};
     
     final name = _str(personalInfo['fullName'], 'PERSONAL INFORMATION CV').toUpperCase();
-    final fatherName = _str(personalInfo['fatherName']);
-    final motherName = _str(personalInfo['motherName']);
-    
-    final dobBS = _str(personalInfo['dateOfBirthBS']);
-    final dobAD = _str(personalInfo['dateOfBirthAD'] ?? personalInfo['dateOfBirth']);
-    final dobText = [
-      if (dobBS.isNotEmpty) "$dobBS BS",
-      if (dobAD.isNotEmpty) "$dobAD AD",
-    ].join(' / ');
-
-    final permanentAddress = _str(personalInfo['permanentAddress']);
-    final temporaryAddress = _str(personalInfo['temporaryAddress']);
-    
+    final info = personalInfo;
+    final infoRows = <Map<String, String>>[];
+    if (_str(info['fatherName']).isNotEmpty) 
+      infoRows.add({'label': "Father's Name", 
+                    'value': _str(info['fatherName'])});
+    if (_str(info['motherName']).isNotEmpty) 
+      infoRows.add({'label': "Mother's Name", 
+                    'value': _str(info['motherName'])});
+    if (_str(info['dateOfBirthBS']).isNotEmpty) 
+      infoRows.add({'label': 'Date of Birth (BS)', 
+                    'value': _str(info['dateOfBirthBS'])});
+    if (_str(info['location']).isNotEmpty || 
+        _str(info['permanentAddress']).isNotEmpty) 
+      infoRows.add({'label': 'Permanent Address', 
+                    'value': _str(info['permanentAddress']).isNotEmpty 
+                      ? _str(info['permanentAddress']) 
+                      : _str(info['location'])});
+    if (_str(info['temporaryAddress']).isNotEmpty) 
+      infoRows.add({'label': 'Temporary Address', 
+                    'value': _str(info['temporaryAddress'])});
+    // Languages from skills
     final skillsMap = content['skills'] as Map<String, dynamic>? ?? {};
-    final languagesList = skillsMap['languages'] as List? ?? [];
-    final languagesKnown = languagesList.map((e) => _str(e)).where((e) => e.isNotEmpty).join(', ');
-
-    final sex = _str(personalInfo['sex']);
-    final maritalStatus = _str(personalInfo['maritalStatus']);
-    final citizenshipNo = _str(personalInfo['citizenshipNo']);
-    final contactNo = _str(personalInfo['phone'] ?? personalInfo['contactNo']);
-    final email = _str(personalInfo['email']);
+    final languages = _list(skillsMap['languages']);
+    if (languages.isNotEmpty) 
+      infoRows.add({'label': 'Language Known', 
+                    'value': languages.join(', ')});
+    if (_str(info['sex']).isNotEmpty) 
+      infoRows.add({'label': 'Sex', 'value': _str(info['sex'])});
+    if (_str(info['maritalStatus']).isNotEmpty) 
+      infoRows.add({'label': 'Marital Status', 
+                    'value': _str(info['maritalStatus'])});
+    infoRows.add({'label': 'Nationality', 'value': 'Nepali'});
+    if (_str(info['citizenshipNo']).isNotEmpty) 
+      infoRows.add({'label': 'Citizenship No', 
+                    'value': _str(info['citizenshipNo'])});
+    final phoneVal = _str(info['phone']).isNotEmpty ? _str(info['phone']) : _str(info['contactNo']);
+    if (phoneVal.isNotEmpty) 
+      infoRows.add({'label': 'Contact No', 'value': phoneVal});
+    if (_str(info['email']).isNotEmpty) 
+      infoRows.add({'label': 'Email', 
+                    'value': _str(info['email'])});
 
     final educations = content['education'] as List? ?? [];
     final experiences = content['workExperience'] as List? ?? [];
@@ -198,20 +226,7 @@ class PdfService {
                     border: pw.TableBorder.symmetric(
                       inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5),
                     ),
-                    children: [
-                      _buildTableRow("Father's Name", fatherName),
-                      _buildTableRow("Mother's Name", motherName),
-                      _buildTableRow("Date of Birth", dobText),
-                      _buildTableRow("Permanent Address", permanentAddress),
-                      _buildTableRow("Temporary Address", temporaryAddress),
-                      _buildTableRow("Language Known", languagesKnown),
-                      _buildTableRow("Sex", sex),
-                      _buildTableRow("Marital Status", maritalStatus),
-                      _buildTableRow("Nationality", "Nepali"),
-                      _buildTableRow("Citizenship No", citizenshipNo),
-                      _buildTableRow("Contact No", contactNo),
-                      _buildTableRow("Email", email),
-                    ],
+                    children: infoRows.map((row) => _buildTableRow(row['label']!, row['value']!)).toList(),
                   ),
                 ),
                 pw.SizedBox(width: 16),
@@ -480,5 +495,10 @@ class PdfService {
         s == 'Not mentioned' || s == 'undefined' ||
         s == 'None' || s == 'n/a') return fallback;
     return s;
+  }
+
+  List<dynamic> _list(dynamic value) {
+    if (value is List) return value;
+    return [];
   }
 }
