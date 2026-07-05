@@ -47,7 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildAlertsSection(String userId, ThemeData theme) {
-    debugPrint('HomeScreen/Alerts: _buildAlertsSection called userId=$userId');
+    debugPrint('Alert: checking personal alerts for user $userId');
     return Column(
       children: [
         // 1. Personal Alerts Stream
@@ -68,6 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final data = doc.data() as Map<String, dynamic>;
               return data['read'] != true;
             }).toList();
+            debugPrint('Alert: found ${docs.length} unread personal alerts');
 
             return Column(
               children: docs.map((doc) {
@@ -82,9 +83,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   type: type,
                   theme: theme,
                   onDismiss: () async {
-                    debugPrint('HomeScreen/Alerts/Personal: dismissing alert doc=${doc.id}');
+                    debugPrint('Alert: dismissing alert ${doc.id}, marking read');
                     await doc.reference.update({'read': true});
-                    debugPrint('HomeScreen/Alerts/Personal: alert marked read doc=${doc.id}');
                   },
                 );
               }).toList(),
@@ -108,6 +108,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             final docs = snapshot.data!.docs.where((doc) {
               return !_dismissedGlobalAlertIds.contains(doc.id);
             }).toList();
+            debugPrint('Alert: last seen global timestamp: N/A (dismissed list: $_dismissedGlobalAlertIds)');
+            debugPrint('Alert: found ${docs.length} new global alerts');
 
             return Column(
               children: docs.map((doc) {
@@ -123,7 +125,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   type: type,
                   theme: theme,
                   onDismiss: () {
-                    debugPrint('HomeScreen/Alerts/Global: user dismissed alert doc=${doc.id}');
+                    debugPrint('Alert: dismissing alert ${doc.id}, marking read');
                     _dismissGlobalAlert(doc.id);
                   },
                 );
